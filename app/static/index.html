@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trợ lý cắt video</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header>
+  <h1>✂️ Trợ lý cắt video</h1>
+  <div id="capabilities" class="caps"></div>
+</header>
+
+<main>
+
+  <!-- ============ BƯỚC 1: TẢI VIDEO ============ -->
+  <section id="step-upload" class="card">
+    <h2>1. Chọn video</h2>
+    <div id="dropzone" class="dropzone">
+      <p class="big">Kéo thả video vào đây</p>
+      <p class="muted">hoặc bấm để chọn file — MP4, MOV, MKV, WebM…</p>
+      <input type="file" id="file-input" accept="video/*" hidden>
+    </div>
+    <div id="upload-progress" class="hidden">
+      <div class="bar"><div class="bar-fill" id="upload-bar"></div></div>
+      <p class="muted" id="upload-label">Đang tải lên…</p>
+    </div>
+    <div id="video-info" class="hidden info-row"></div>
+  </section>
+
+  <!-- ============ BƯỚC 2: CÀI ĐẶT ============ -->
+  <section id="step-settings" class="card hidden">
+    <h2>2. Chọn thứ cần cắt</h2>
+
+    <div class="grid">
+      <label class="check">
+        <input type="checkbox" id="opt-silence" checked>
+        <div>
+          <strong>Khoảng im lặng</strong>
+          <span class="muted">Cắt các đoạn dừng dài, chừa lại một chút cho tự nhiên.</span>
+        </div>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="opt-fillers" checked>
+        <div>
+          <strong>Từ đệm (ừ, à, ờ, kiểu như…)</strong>
+          <span class="muted">Cắt riêng từng từ đệm dựa trên timestamp từng chữ.</span>
+        </div>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="opt-badtakes" checked>
+        <div>
+          <strong>Vấp / nói lại câu (bad take)</strong>
+          <span class="muted">Giữ lần nói tốt nhất, bỏ các lần hỏng.</span>
+        </div>
+      </label>
+
+      <label class="check" id="wrap-offtopic">
+        <input type="checkbox" id="opt-offtopic">
+        <div>
+          <strong>Đoạn lạc đề / dài dòng</strong>
+          <span class="muted">Cần Claude API. Mặc định chỉ đề xuất, không tự cắt.</span>
+        </div>
+      </label>
+
+      <label class="check" id="wrap-broll">
+        <input type="checkbox" id="opt-broll" checked>
+        <div>
+          <strong>Chèn B-roll đúng ngữ cảnh</strong>
+          <span class="muted">Tìm video stock miễn phí khớp với nội dung đang nói.</span>
+        </div>
+      </label>
+    </div>
+
+    <details class="advanced">
+      <summary>Tinh chỉnh nâng cao</summary>
+      <div class="tune">
+        <label>Ngưỡng im lặng (dB)
+          <input type="range" id="tune-db" min="-50" max="-20" value="-32" step="1">
+          <output id="out-db">-32</output>
+        </label>
+        <label>Im lặng dài hơn (giây) mới cắt
+          <input type="range" id="tune-mindur" min="0.2" max="2" value="0.6" step="0.1">
+          <output id="out-mindur">0.6</output>
+        </label>
+        <label>Chừa lại mỗi đầu (giây)
+          <input type="range" id="tune-pad" min="0" max="0.4" value="0.12" step="0.02">
+          <output id="out-pad">0.12</output>
+        </label>
+        <label>Số đoạn B-roll tối đa
+          <input type="range" id="tune-broll" min="0" max="20" value="8" step="1">
+          <output id="out-broll">8</output>
+        </label>
+        <label>Độ dài mỗi đoạn B-roll (giây)
+          <input type="range" id="tune-brolllen" min="2" max="8" value="4" step="0.5">
+          <output id="out-brolllen">4</output>
+        </label>
+        <label class="wide">Thêm từ đệm của riêng bạn (cách nhau bằng dấu phẩy)
+          <input type="text" id="tune-fillers" placeholder="ví dụ: okay, đúng không, các bạn ạ">
+        </label>
+      </div>
+    </details>
+
+    <div class="actions">
+      <button id="btn-analyze" class="primary">Phân tích &amp; để tôi duyệt</button>
+      <button id="btn-auto" class="ghost">⚡ Auto — làm hết, xuất luôn</button>
+    </div>
+  </section>
+
+  <!-- ============ TIẾN ĐỘ ============ -->
+  <section id="step-progress" class="card hidden">
+    <h2 id="progress-title">Đang xử lý…</h2>
+    <div class="bar"><div class="bar-fill" id="job-bar"></div></div>
+    <p class="stage" id="job-stage"></p>
+    <p class="muted mono" id="job-message"></p>
+  </section>
+
+  <!-- ============ BƯỚC 3: DUYỆT ============ -->
+  <section id="step-review" class="card hidden">
+    <h2>3. Duyệt lại trước khi render</h2>
+
+    <div id="summary" class="summary"></div>
+
+    <div class="review">
+      <div class="preview">
+        <video id="player" controls playsinline></video>
+        <div id="timeline" class="timeline" title="Vạch đỏ = đoạn sẽ cắt · vạch xanh = B-roll"></div>
+        <p class="muted small">Bấm vào một dòng bên phải để tua video tới đúng chỗ đó.</p>
+      </div>
+
+      <div class="lists">
+        <div class="tabs">
+          <button class="tab active" data-tab="cuts">Đoạn cắt (<span id="count-cuts">0</span>)</button>
+          <button class="tab" data-tab="brolls">B-roll (<span id="count-brolls">0</span>)</button>
+          <button class="tab" data-tab="script">Lời thoại</button>
+        </div>
+
+        <div class="filters" id="cut-filters">
+          <label><input type="checkbox" class="kind-filter" data-kind="silence" checked> Im lặng</label>
+          <label><input type="checkbox" class="kind-filter" data-kind="filler" checked> Từ đệm</label>
+          <label><input type="checkbox" class="kind-filter" data-kind="badtake" checked> Vấp</label>
+          <label><input type="checkbox" class="kind-filter" data-kind="offtopic" checked> Lạc đề</label>
+          <button id="btn-toggle-all" class="link">Bỏ tick tất cả</button>
+        </div>
+
+        <div id="tab-cuts" class="tab-body"></div>
+        <div id="tab-brolls" class="tab-body hidden"></div>
+        <div id="tab-script" class="tab-body hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BƯỚC 4: XUẤT ============ -->
+  <section id="step-export" class="card hidden">
+    <h2>4. Xuất video</h2>
+    <div class="grid">
+      <label class="check">
+        <input type="checkbox" id="out-vertical" checked>
+        <div><strong>Bản dọc 9:16 (TikTok / Reels / Shorts)</strong>
+          <span class="muted">Tự bám mặt người nói để không bị cắt mất đầu.</span></div>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="out-original">
+        <div><strong>Bản giữ tỉ lệ gốc</strong>
+          <span class="muted">Dùng cho YouTube ngang hoặc lưu trữ.</span></div>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="out-srt" checked>
+        <div><strong>File phụ đề .srt</strong>
+          <span class="muted">Đã khớp lại thời gian sau khi cắt.</span></div>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="out-burn">
+        <div><strong>Nướng phụ đề lên video</strong>
+          <span class="muted">Chữ trắng viền đen, đặt thấp cho video dọc.</span></div>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="btn-render" class="primary">Render ngay</button>
+    </div>
+    <div id="outputs" class="outputs hidden"></div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

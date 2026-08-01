@@ -1,0 +1,21 @@
+# --- Web server ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.4
+
+# --- Bóc lời nói (chạy local, không cần internet) ---
+faster-whisper==1.1.1
+
+# --- Hiểu ngữ cảnh + chọn B-roll (cần ANTHROPIC_API_KEY, có thể bỏ qua) ---
+anthropic>=0.69.0
+
+# --- Tải B-roll từ Pexels / Pixabay ---
+httpx==0.28.1
+
+# --- Bám mặt người nói để cắt dọc 9:16 ---
+opencv-python-headless==4.10.0.84
+numpy>=1.26,<3
+
+# --- Đọc biến môi trường từ file .env ---
+python-dotenv==1.0.1

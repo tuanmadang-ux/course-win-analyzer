@@ -67,6 +67,18 @@ và tải MP4 về. Huỷ giữa chừng được.
 
 Đổi cổng: `FACELESS_PORT=9000 python3 run_webapp.py`.
 
+**Chạy test:**
+
+```bash
+pip install -r webapp/requirements-dev.txt
+pytest                    # ~2.5s, không render thật
+```
+
+Bộ test không gọi Remotion (một lần render mất 40s+). `tests/fake_render.py` in ra
+đúng định dạng output của Remotion — kể cả những chỗ từng gây lỗi: tiến độ ghi bằng
+`\r`, cảnh báo bộ nhớ chen ngang, và dòng `Downloading 50% of chrome` vốn hay bị đọc
+nhầm thành tiến độ render.
+
 > Webapp chỉ **render** những gì đã có. Việc *tạo video mới* vẫn qua Claude Code —
 > xem mục "Làm video mới" bên dưới.
 
@@ -154,6 +166,7 @@ gu âm thanh. Sửa file đó — mọi video sau đều đi theo.
 .claude/skills/   5 skill: make-short, make-ai-short, make-vox,
                   vidtsx-2d-generator, suggest-sfx  ← "tay nghề" nằm ở đây
 webapp/           bảng điều khiển render (FastAPI) — chạy bằng run_webapp.py
+tests/            test tự động cho webapp (pytest) — chạy: pytest
 tools/            Python: gen_voice, gen_sfx, gen_music, mix_sfx, mix_music,
                   gen_image, gen_clip, bakeoff_clip, cutout, capture_web, gen_chords,
                   gen_chess_pieces

@@ -51,6 +51,9 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._logs: dict[str, list[str]] = {}
         self._procs: dict[str, subprocess.Popen] = {}
+        # Id đã được yêu cầu huỷ. Cần riêng một tập vì lệnh huỷ có thể đến TRƯỚC
+        # khi tiến trình con kịp sinh ra — lúc đó chưa có gì trong _procs để giết.
+        self._cancelled: set[str] = set()
         self._lock = threading.Lock()
 
     # -- truy vấn ----------------------------------------------------------
@@ -76,17 +79,26 @@ class JobManager:
 
     def cancel(self, job_id: str) -> bool:
         with self._lock:
-            proc = self._procs.get(job_id)
             job = self._jobs.get(job_id)
-        if not proc or not job or job.status not in ("queued", "running"):
-            return False
+            if not job or job.status not in ("queued", "running"):
+                return False
+            # Ghi nhận trước, kể cả khi tiến trình chưa sinh ra: _run sẽ thấy cờ
+            # này ngay sau khi Popen thành công và tự dừng.
+            self._cancelled.add(job_id)
+            proc = self._procs.get(job_id)
+
+        if proc is not None:
+            self._kill(proc)
+        self._update(job_id, status="error", error="đã huỷ theo yêu cầu")
+        return True
+
+    @staticmethod
+    def _kill(proc: subprocess.Popen) -> None:
         proc.terminate()
         try:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
-        self._update(job_id, status="error", error="đã huỷ theo yêu cầu")
-        return True
 
     def _update(self, job_id: str, **fields: Any) -> None:
         with self._lock:
@@ -127,6 +139,7 @@ class JobManager:
         for job in finished[: max(0, len(finished) - MAX_FINISHED_JOBS)]:
             self._jobs.pop(job.id, None)
             self._logs.pop(job.id, None)
+            self._cancelled.discard(job.id)
 
     def start(self, kind: str, argv: list[str], shot: str = "") -> Job:
         job = Job(id=uuid.uuid4().hex[:12], kind=kind, shot=shot)
@@ -138,7 +151,6 @@ class JobManager:
         return job
 
     def _run(self, job_id: str, argv: list[str]) -> None:
-        self._update(job_id, status="running", message="đang khởi động…")
         log.info("job %s: %s", job_id, " ".join(argv))
         try:
             proc = subprocess.Popen(
@@ -155,8 +167,18 @@ class JobManager:
             self._update(job_id, status="error", error=f"không chạy được: {e}")
             return
 
+        # Ghi tiến trình rồi mới chuyển sang "running": đảo thứ tự sẽ có một khe
+        # mà job đã "running" nhưng cancel() chưa có gì để giết, nên huỷ trượt.
         with self._lock:
             self._procs[job_id] = proc
+            cancelled = job_id in self._cancelled
+        if cancelled:
+            self._kill(proc)
+            self._update(job_id, status="error", error="đã huỷ theo yêu cầu")
+            with self._lock:
+                self._procs.pop(job_id, None)
+            return
+        self._update(job_id, status="running", message="đang khởi động…")
 
         outputs: list[str] = []
         job = self.get(job_id)

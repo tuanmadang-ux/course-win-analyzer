@@ -1,0 +1,78 @@
+{
+  "note": "Chess piece sprites for remotion/src/lib/chess.tsx, which loads them as staticFile('library/chess/<code>.svg'). Drawn by tools/gen_chess_pieces.py — re-run it to restyle the set. Flat silhouettes on a 45x45 viewBox, tuned for the CLASSIC board theme (light #F0D9B5 / dark #B58863) at phone scale.",
+  "license": "Drawn for this repo by tools/gen_chess_pieces.py; MIT, same as the repo.",
+  "pieces": [
+    {
+      "id": "wK",
+      "file": "wK.svg",
+      "color": "white",
+      "piece": "king"
+    },
+    {
+      "id": "wQ",
+      "file": "wQ.svg",
+      "color": "white",
+      "piece": "queen"
+    },
+    {
+      "id": "wR",
+      "file": "wR.svg",
+      "color": "white",
+      "piece": "rook"
+    },
+    {
+      "id": "wB",
+      "file": "wB.svg",
+      "color": "white",
+      "piece": "bishop"
+    },
+    {
+      "id": "wN",
+      "file": "wN.svg",
+      "color": "white",
+      "piece": "knight"
+    },
+    {
+      "id": "wP",
+      "file": "wP.svg",
+      "color": "white",
+      "piece": "pawn"
+    },
+    {
+      "id": "bK",
+      "file": "bK.svg",
+      "color": "black",
+      "piece": "king"
+    },
+    {
+      "id": "bQ",
+      "file": "bQ.svg",
+      "color": "black",
+      "piece": "queen"
+    },
+    {
+      "id": "bR",
+      "file": "bR.svg",
+      "color": "black",
+      "piece": "rook"
+    },
+    {
+      "id": "bB",
+      "file": "bB.svg",
+      "color": "black",
+      "piece": "bishop"
+    },
+    {
+      "id": "bN",
+      "file": "bN.svg",
+      "color": "black",
+      "piece": "knight"
+    },
+    {
+      "id": "bP",
+      "file": "bP.svg",
+      "color": "black",
+      "piece": "pawn"
+    }
+  ]
+}

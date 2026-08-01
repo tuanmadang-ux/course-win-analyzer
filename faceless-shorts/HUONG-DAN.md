@@ -165,7 +165,24 @@ và không bao giờ sinh lại nhân vật đã khóa từ mô tả chữ.
 | ffmpeg / ffprobe | 6.1.1 |
 | `npm install` | 197 gói |
 | `npm run gen` | 14 composition |
-| Render QA frames | ✅ `Short2Math` 3 khung, font hiển thị đúng |
+| `npx tsc --noEmit` | ✅ không lỗi |
+| Render still **cả 14** composition | ✅ 14/14 |
 | Render video đầy đủ | ✅ `out/Short2Math.mp4` — 1080×1920, h264+aac, 42.05s, 5.0MB |
-| Tools Python | ✅ chạy (stdlib); `gen_sfx` đọc được catalog 33 clip |
-| Deps track vox | ✅ pillow 12.3.0 + rembg 2.0.77 (CPU) |
+| Tools Python (11 file) | ✅ chạy hết (stdlib); `gen_sfx`/`gen_music`/`gen_chords` đọc đúng catalog |
+| Deps track vox | ✅ pillow 12.3.0 + rembg 2.0.77 (CPU) + playwright |
+
+### Một chỗ upstream thiếu — đã vá
+
+`remotion/src/lib/chess.tsx` nạp quân cờ qua `staticFile('library/chess/<mã>.svg')`,
+nhưng repo gốc **không commit** thư mục đó. Hậu quả: `Short1Chess` render ra bàn cờ
+toàn ảnh vỡ, rồi crash (`CancelledError` sau 404 + `EncodingError`).
+
+Đã thêm `tools/gen_chess_pieces.py` — **vẽ** đủ 12 quân (w/b × K Q R B N P) thành SVG
+thay vì tải bộ có sẵn về, nên không kéo theo giấy phép của bên thứ ba vào repo MIT này.
+
+```bash
+python3 tools/gen_chess_pieces.py           # ghi media/library/chess/*.svg
+python3 tools/gen_chess_pieces.py --force   # vẽ lại sau khi sửa style
+```
+
+Muốn đổi kiểu quân cờ thì sửa `THEMES` / `PIECES` trong file đó rồi chạy lại với `--force`.

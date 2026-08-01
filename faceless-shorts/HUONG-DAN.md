@@ -50,7 +50,31 @@ Không có key nào vẫn **render được toàn bộ 14 composition mẫu** �
 
 ---
 
-## Chạy thử
+## Bảng điều khiển render (webapp)
+
+Không thích gõ lệnh thì mở giao diện web:
+
+```bash
+cd faceless-shorts
+pip install -r webapp/requirements.txt   # lần đầu
+python3 run_webapp.py                    # -> http://127.0.0.1:8770
+```
+
+Trong đó bạn có thể: xem cả 14 composition kèm ảnh preview, lọc theo track
+(TSX / AI video / Collage), bấm render ảnh hoặc video và **theo dõi tiến độ theo %**,
+render vài khung hình QA để soi nhanh, đọc kịch bản, xem lại video ngay trên trang
+và tải MP4 về. Huỷ giữa chừng được.
+
+Đổi cổng: `FACELESS_PORT=9000 python3 run_webapp.py`.
+
+> Webapp chỉ **render** những gì đã có. Việc *tạo video mới* vẫn qua Claude Code —
+> xem mục "Làm video mới" bên dưới.
+
+Ngoài ra Remotion có sẵn giao diện riêng để xem/tua timeline: `cd remotion && npm run studio`.
+
+---
+
+## Chạy thử bằng dòng lệnh
 
 ```bash
 cd faceless-shorts/remotion
@@ -129,8 +153,10 @@ gu âm thanh. Sửa file đó — mọi video sau đều đi theo.
 ```
 .claude/skills/   5 skill: make-short, make-ai-short, make-vox,
                   vidtsx-2d-generator, suggest-sfx  ← "tay nghề" nằm ở đây
+webapp/           bảng điều khiển render (FastAPI) — chạy bằng run_webapp.py
 tools/            Python: gen_voice, gen_sfx, gen_music, mix_sfx, mix_music,
-                  gen_image, gen_clip, bakeoff_clip, cutout, capture_web, gen_chords
+                  gen_image, gen_clip, bakeoff_clip, cutout, capture_web, gen_chords,
+                  gen_chess_pieces
 remotion/         dự án Remotion — src/lib/ (kit dùng chung), src/shots/ (1 thư mục / video)
 media/library/    tài sản dùng lại nhiều video: 33 SFX + 6 nhạc nền (có catalog)
 media/projects/   media riêng của 1 video (clip AI, layer collage) — có commit

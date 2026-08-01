@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xưởng Shorts — bảng điều khiển render</title>
+<!-- Favicon nội tuyến: trình duyệt khỏi đi hỏi /favicon.ico rồi nhận 404. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236366F1'/%3E%3Cpath d='M13 9.5v13l10-6.5z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap head">
+    <div>
+      <h1>Xưởng Shorts</h1>
+      <p class="sub">Bảng điều khiển render — xem, dựng, tải video 9:16</p>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="warn" class="warn hidden"></section>
+
+  <div class="toolbar">
+    <div class="filters" id="filters">
+      <button class="chip on" data-track="all">Tất cả</button>
+      <button class="chip" data-track="tsx">TSX</button>
+      <button class="chip" data-track="ai">AI video</button>
+      <button class="chip" data-track="vox">Collage</button>
+    </div>
+    <button id="btn-gen" class="btn ghost" title="Chạy lại sau khi thêm hoặc đổi tên shot">
+      Sinh lại registry
+    </button>
+  </div>
+
+  <section id="grid" class="grid"></section>
+
+  <section class="jobs">
+    <h2>Tác vụ</h2>
+    <div id="jobs" class="joblist"><p class="empty">Chưa có tác vụ nào.</p></div>
+  </section>
+
+</main>
+
+<!-- Cửa sổ chi tiết -->
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <button class="modal-x" id="modal-x" aria-label="Đóng">×</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

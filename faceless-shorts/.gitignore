@@ -23,5 +23,8 @@ vox-shorts/*/output/
 ai-shorts/*/shots/*.mp4
 ai-shorts/*/bakeoff/*.mp4
 
+# webapp: môi trường ảo Python (nếu tạo trong repo)
+.venv/
+
 # local editor config
 .vscode/

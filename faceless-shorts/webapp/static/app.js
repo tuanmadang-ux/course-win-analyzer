@@ -6,6 +6,9 @@ const TRACKS = { tsx: 'TSX', ai: 'AI video', vox: 'Collage' };
 let shots = [];
 let filter = 'all';
 let poll = null;
+// "<shot>:<kind>" của các tác vụ đang chạy — dùng để khoá nút, tránh hai tiến
+// trình render cùng ghi một file (server cũng chặn, đây là lớp thứ hai).
+let busy = new Set();
 
 const api = async (url, opts) => {
   const res = await fetch(url, opts);
@@ -94,8 +97,14 @@ function renderGrid() {
           }</div>
         </div>
         <div class="actions">
-          <button class="btn small" data-act="still" data-id="${s.id}">Ảnh preview</button>
-          <button class="btn small primary" data-act="video" data-id="${s.id}">Render</button>
+          <button class="btn small" data-act="still" data-id="${s.id}"
+            ${busy.has(`${s.id}:still`) ? 'disabled' : ''}>
+            ${busy.has(`${s.id}:still`) ? 'Đang render…' : 'Ảnh preview'}
+          </button>
+          <button class="btn small primary" data-act="video" data-id="${s.id}"
+            ${busy.has(`${s.id}:video`) ? 'disabled' : ''}>
+            ${busy.has(`${s.id}:video`) ? 'Đang render…' : 'Render'}
+          </button>
           ${s.video ? `<a class="btn small" href="/api/video/${s.id}" download>Tải về</a>` : ''}
         </div>
       </article>`;
@@ -147,9 +156,14 @@ async function loadJobs() {
     ? jobs.map(jobRow).join('')
     : '<p class="empty">Chưa có tác vụ nào.</p>';
 
-  const busy = jobs.some((j) => j.status === 'running' || j.status === 'queued');
-  if (busy && !poll) poll = setInterval(tick, 1200);
-  if (!busy && poll) {
+  const live = jobs.filter((j) => j.status === 'running' || j.status === 'queued');
+  const next = new Set(live.map((j) => `${j.shot}:${j.kind}`));
+  const changed = next.size !== busy.size || [...next].some((k) => !busy.has(k));
+  busy = next;
+  if (changed) renderGrid(); // khoá / mở lại nút cho đúng trạng thái
+
+  if (live.length && !poll) poll = setInterval(tick, 1200);
+  if (!live.length && poll) {
     clearInterval(poll);
     poll = null;
     loadShots(); // job vừa xong — làm mới thumbnail và nút tải

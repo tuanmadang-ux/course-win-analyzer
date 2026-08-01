@@ -97,9 +97,17 @@ class FramesRequest(BaseModel):
     scale: float = Field(default=0.5, ge=0.25, le=2.0)
 
 
+def _reject_if_busy(shot: str, kind: str) -> None:
+    """Hai tiến trình chạy cùng lúc sẽ ghi đè cùng một file đầu ra — chặn lại."""
+    if (running := manager.busy_with(shot, kind)) is not None:
+        what = f"{shot} đang được render" if shot else "Việc này đang chạy"
+        raise HTTPException(409, f"{what} rồi (tác vụ {running.id})")
+
+
 @app.post("/api/render")
 def render(req: RenderRequest) -> dict:
     _valid_shot(req.id)
+    _reject_if_busy(req.id, req.kind)
     argv = ["node", "scripts/render-all.mjs", req.id, f"--scale={req.scale}"]
     if req.kind == "still":
         argv.append("--still")
@@ -116,6 +124,7 @@ def frames(req: FramesRequest) -> dict:
         raise HTTPException(400, "danh sách khung hình phải là các số, cách nhau bởi dấu phẩy")
     if len(nums) > 12:
         raise HTTPException(400, "tối đa 12 khung hình một lần")
+    _reject_if_busy(req.id, "frames")
     argv = ["node", "scripts/frames.mjs", req.id, ",".join(nums), f"--scale={req.scale}"]
     job = manager.start("frames", argv, shot=req.id)
     return job.to_dict()
@@ -124,6 +133,7 @@ def frames(req: FramesRequest) -> dict:
 @app.post("/api/gen")
 def regenerate_registry() -> dict:
     """Chạy lại npm run gen — cần sau khi thêm/đổi tên shot."""
+    _reject_if_busy("", "gen")  # hai lần chạy song song cùng ghi registry.gen.tsx
     return manager.start("gen", ["node", "scripts/gen-registry.mjs"]).to_dict()
 
 

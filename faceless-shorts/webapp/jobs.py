@@ -15,12 +15,16 @@ from webapp.config import REMOTION_DIR, render_env
 
 log = logging.getLogger(__name__)
 
-# render-all.mjs in "  <id>: 42%" (dùng \r nên phải bắt trên cả dòng gộp).
-_PROGRESS_RE = re.compile(r"(\d{1,3})%")
+# render-all.mjs in "  <id>: 42%" (dùng \r nên phải bắt trên cả dòng gộp). Phải neo
+# vào đúng dạng "<id>: <số>%" rồi đối chiếu <id> với shot đang render — bắt mỗi "%"
+# trên dòng là dính nhầm cả "Downloading 50% of chrome" lẫn "Error: 100% ...".
+_PROGRESS_RE = re.compile(r"^\s*(\S+):\s+(\d{1,3})%")
 # frames.mjs / render-all.mjs in "  -> out/x.png" hoặc "  still -> out/x.png".
 _WROTE_RE = re.compile(r"->\s*(\S+)")
 
 MAX_LOG_LINES = 400
+# Giữ lại bấy nhiêu tác vụ đã kết thúc; cũ hơn thì dọn để phiên chạy dài không phình.
+MAX_FINISHED_JOBS = 60
 
 
 @dataclass
@@ -102,11 +106,34 @@ class JobManager:
 
     # -- chạy --------------------------------------------------------------
 
+    def busy_with(self, shot: str, kind: str) -> Job | None:
+        """Tác vụ đang chạy ghi đúng file mà (shot, kind) này sắp ghi, nếu có."""
+        with self._lock:
+            return next(
+                (
+                    j
+                    for j in self._jobs.values()
+                    if j.shot == shot and j.kind == kind and j.status in ("queued", "running")
+                ),
+                None,
+            )
+
+    def _prune(self) -> None:
+        """Bỏ bớt tác vụ đã kết thúc, giữ lại MAX_FINISHED_JOBS cái mới nhất."""
+        finished = sorted(
+            (j for j in self._jobs.values() if j.status in ("done", "error")),
+            key=lambda j: j.updated_at,
+        )
+        for job in finished[: max(0, len(finished) - MAX_FINISHED_JOBS)]:
+            self._jobs.pop(job.id, None)
+            self._logs.pop(job.id, None)
+
     def start(self, kind: str, argv: list[str], shot: str = "") -> Job:
         job = Job(id=uuid.uuid4().hex[:12], kind=kind, shot=shot)
         with self._lock:
             self._jobs[job.id] = job
             self._logs[job.id] = []
+            self._prune()
         threading.Thread(target=self._run, args=(job.id, argv), daemon=True).start()
         return job
 
@@ -132,6 +159,8 @@ class JobManager:
             self._procs[job_id] = proc
 
         outputs: list[str] = []
+        job = self.get(job_id)
+        expect = job.shot if job else ""
         assert proc.stdout is not None
         for raw in proc.stdout:
             # Remotion ghi đè tiến độ bằng \r — tách ra để không nuốt mất dòng.
@@ -141,8 +170,9 @@ class JobManager:
                     continue
                 self._append_log(job_id, line)
 
-                if (m := _PROGRESS_RE.search(line)) and "%" in line:
-                    pct = min(100, int(m.group(1)))
+                m = _PROGRESS_RE.match(line)
+                if m and expect and m.group(1) == expect:
+                    pct = min(100, int(m.group(2)))
                     self._update(job_id, progress=pct / 100.0, message=line.strip())
                 elif (m := _WROTE_RE.search(line)) and ("->" in line):
                     outputs.append(m.group(1))

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -119,10 +120,18 @@ def da_chay(_mau_co_cache, tmp_path_factory):
     return {"dir": work, "ts": ts, "stdout": stdout, "beats": beats}
 
 
-def _run_gen_voice(beats: Path, *extra: str):
+def _run_gen_voice(beats: Path, *extra: str, key: str = ""):
+    """Chạy gen_voice.py, mặc định KHÔNG có API key.
+
+    load_env() gộp {**dotenv, **os.environ} nên os.environ thắng: đặt biến rỗng
+    là vô hiệu hoá key trong .env của máy đang chạy. Nhờ vậy test cho kết quả
+    giống nhau ở mọi nơi — lần trước nó xanh cục bộ chỉ vì máy tôi có .env, rồi
+    đỏ trên CI.
+    """
     r = subprocess.run(
         [sys.executable, str(GEN_VOICE), "--beats", str(beats), *extra],
         capture_output=True, text=True, cwd=ROOT,
+        env={**os.environ, "ELEVENLABS_API_KEY": key},
     )
     assert r.returncode == 0, f"gen_voice.py hỏng:\n{r.stdout}\n{r.stderr}"
     return r.stdout
@@ -203,3 +212,29 @@ def test_dry_run_khong_dong_vao_gi(short_voi_cache):
     assert beats_path.read_text(encoding="utf-8") == before, "--dry-run không được sửa beats.json"
     assert not (short_voi_cache / "voice" / "voice.wav").exists()
     assert "line" in out and "window" in out
+
+
+def test_thieu_key_van_chay_duoc_neu_da_co_cache(da_chay):
+    """Cache đầy đủ thì không gọi API, nên không được đòi key.
+
+    Mọi lần chạy trong file này đều đặt ELEVENLABS_API_KEY rỗng; fixture da_chay
+    hoàn tất được chính là bằng chứng. Trước đây tool thoát ngay từ đầu nếu thiếu
+    key, chặn cả việc mux lại giọng đã sinh hôm trước lên bản render mới.
+    """
+    assert (da_chay["dir"] / "voice" / "voice.wav").exists()
+    assert "not found in .env" not in da_chay["stdout"]
+
+
+def test_thieu_key_VA_thieu_cache_thi_bao_loi_ro(short_voi_cache):
+    """Xoá cache một câu -> phải báo đúng câu nào cần key, chứ không im lặng."""
+    import subprocess as sp
+    for f in (short_voi_cache / "voice").glob("line-03-*"):
+        f.unlink()
+    r = sp.run(
+        [sys.executable, str(GEN_VOICE), "--beats", str(short_voi_cache / "beats.json")],
+        capture_output=True, text=True, cwd=ROOT,
+        env={**os.environ, "ELEVENLABS_API_KEY": ""},
+    )
+    assert r.returncode != 0
+    assert "ELEVENLABS_API_KEY" in r.stderr
+    assert "line 3" in r.stderr, f"phải chỉ rõ câu nào thiếu: {r.stderr!r}"

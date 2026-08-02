@@ -169,9 +169,10 @@ def main():
     vdir = os.path.join(os.path.dirname(beats_path), "voice")
     os.makedirs(vdir, exist_ok=True)
 
+    # No early key check: a fully cached run makes ZERO API calls, so demanding a
+    # key up front would block re-muxing or re-emitting yesterday's voice onto a
+    # new render. The check lives at the one place that actually calls out.
     key = load_env().get("ELEVENLABS_API_KEY")
-    if not key and not args.dry_run:
-        sys.exit("ELEVENLABS_API_KEY not found in .env")
 
     fitted = []  # (path, start_sec, fitted_dur)
     print(f"{'line':4s} {'start':>6s} {'window':>6s} {'clip':>6s} {'tempo':>5s}  text")
@@ -189,6 +190,8 @@ def main():
             continue
 
         if args.force or not os.path.exists(raw) or not os.path.exists(raw + ".words.json"):
+            if not key:
+                sys.exit(f"ELEVENLABS_API_KEY not found in .env — needed to generate line {i}: {tts_text!r}")
             prev_text = vo[i - 1].get("tts", vo[i - 1]["text"]) if i > 0 else None
             next_text = vo[i + 1].get("tts", vo[i + 1]["text"]) if i + 1 < len(vo) else None
             tts_line(key, args.voice, args.model, tts_text, prev_text, next_text, raw)

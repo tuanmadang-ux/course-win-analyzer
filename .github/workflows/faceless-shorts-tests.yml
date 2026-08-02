@@ -1,0 +1,36 @@
+name: faceless-shorts tests
+
+# Chỉ chạy khi đụng tới faceless-shorts/ — dự án gốc ở thư mục cha không liên quan
+# và có deps rất nặng (whisper, opencv), không việc gì phải cài lại ở đây.
+on:
+  push:
+    paths:
+      - 'faceless-shorts/**'
+      - '.github/workflows/faceless-shorts-tests.yml'
+  pull_request:
+    paths:
+      - 'faceless-shorts/**'
+      - '.github/workflows/faceless-shorts-tests.yml'
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: faceless-shorts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Bộ test không gọi Remotion — tools/fake_render.py đóng thế. Nên runner
+      # không cần node, ffmpeg hay npm install: chỉ Python là đủ (đã kiểm bằng
+      # cách chạy với PATH chỉ có python3).
+      - name: Cài thư viện
+        run: pip install -r webapp/requirements-dev.txt
+
+      - name: Chạy test
+        run: pytest

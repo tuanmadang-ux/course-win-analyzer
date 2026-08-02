@@ -46,7 +46,24 @@ Script sẽ kiểm tra `node ≥18`, `python3 ≥3.10`, `ffmpeg`/`ffprobe`, tạ
 
 Điền key vào `.env` ở thư mục `faceless-shorts/`. **Không commit `.env`** (đã có trong `.gitignore`).
 
-Không có key nào vẫn **render được toàn bộ 14 composition mẫu** — chỉ là không có giọng đọc mới.
+Không có key nào vẫn **render được toàn bộ 14 composition mẫu**. Nhưng lưu ý:
+
+> **Video render ra sẽ CÂM.** Track audio có tồn tại nhưng im lặng tuyệt đối (−91 dB) —
+> file giọng đọc nằm trong `*/voice/` vốn bị gitignore vì tái tạo được. Phần hình và
+> **phụ đề vẫn khớp từng chữ**, vì `beats.json` đã chứa sẵn timestamp thật từ lần chạy
+> ElevenLabs của tác giả gốc.
+>
+> Muốn có tiếng thì cần `ELEVENLABS_API_KEY` rồi chạy:
+> ```bash
+> python3 tools/gen_voice.py --beats shorts/short-2-math/beats.json \
+>   --emit-ts remotion/src/shots/short-2/vo.gen.ts \
+>   --mux remotion/out/Short2Math.mp4      # -> Short2Math-voiced.mp4
+> ```
+> Tool cache theo từng câu: sửa một câu chỉ tính tiền lại đúng câu đó.
+
+**Nếu chạy trong sandbox / CI bị chặn egress:** `api.elevenlabs.io` và `fal.run` thường
+nằm ngoài allowlist, lỗi báo là `Tunnel connection failed: 403 Forbidden`. Đó là chính
+sách mạng chứ không phải key sai — mở allowlist cho hai host đó, hoặc chạy trên máy cá nhân.
 
 ---
 

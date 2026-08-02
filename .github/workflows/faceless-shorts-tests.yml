@@ -35,8 +35,15 @@ jobs:
       # Bộ test không gọi Remotion — tools/fake_render.py đóng thế. Nên runner
       # không cần node, ffmpeg hay npm install: chỉ Python là đủ (đã kiểm bằng
       # cách chạy với PATH chỉ có python3).
+      # tests/test_gen_voice.py cần ffmpeg/ffprobe (co giãn atempo, ghép track,
+      # mux, đo âm lượng). Thiếu chúng thì skipif cho qua âm thầm — mà skip nhìn
+      # y hệt pass, nên cài hẳn để chúng thực sự chạy.
+      - name: Cài ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Cài thư viện
         run: pip install -r webapp/requirements-dev.txt
 
+      # -ra liệt kê mọi test bị skip; --strict-markers chặn marker gõ sai lặng lẽ.
       - name: Chạy test
-        run: pytest
+        run: pytest -ra --strict-markers

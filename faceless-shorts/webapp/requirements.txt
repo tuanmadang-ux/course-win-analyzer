@@ -1,0 +1,5 @@
+# Bảng điều khiển render (webapp/). Cài: pip install -r webapp/requirements.txt
+# Phần lõi của xưởng shorts vẫn chỉ dùng stdlib — đây là deps riêng của webapp.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4

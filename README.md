@@ -184,3 +184,21 @@ Nhờ vậy tiếng nói không bao giờ bị lệch khỏi hình dù cắt bao
 Video từ Pexels và Pixabay dùng được cho mục đích thương mại, không bắt buộc ghi nguồn.
 Phần mềm vẫn lưu lại tên tác giả và link trang gốc trong `data/jobs/<id>/project.json`
 nếu bạn muốn ghi credit.
+
+---
+
+## Dự án kèm theo: `faceless-shorts/`
+
+Thư mục [`faceless-shorts/`](faceless-shorts/) là một dự án **riêng biệt, độc lập** —
+[claude-faceless-shorts-creator](https://github.com/hassancs91/claude-faceless-shorts-creator) (MIT).
+Nó không dùng chung code, `.env` hay thư viện Python với trợ lý cắt video ở trên.
+
+Khác nhau ở chỗ: trợ lý cắt video **xử lý video quay sẵn của bạn**, còn `faceless-shorts`
+**tạo video từ con số không** — animation dựng bằng code (Remotion), lồng tiếng ElevenLabs,
+phụ đề khớp từng chữ, xuất 9:16. Bạn điều khiển nó bằng Claude Code.
+
+```bash
+cd faceless-shorts && bash setup.sh
+```
+
+Xem [`faceless-shorts/HUONG-DAN.md`](faceless-shorts/HUONG-DAN.md).

@@ -1,0 +1,49 @@
+name: faceless-shorts tests
+
+# Chỉ chạy khi đụng tới faceless-shorts/ — dự án gốc ở thư mục cha không liên quan
+# và có deps rất nặng (whisper, opencv), không việc gì phải cài lại ở đây.
+# push chỉ giới hạn ở nhánh mặc định: nhánh feature đã được pull_request lo rồi,
+# để cả hai cùng bắn thì mỗi lần đẩy code chạy CI hai lượt y hệt nhau.
+on:
+  push:
+    branches:
+      - claude/ai-video-editing-software-emdm7c
+    paths:
+      - 'faceless-shorts/**'
+      - '.github/workflows/faceless-shorts-tests.yml'
+  pull_request:
+    paths:
+      - 'faceless-shorts/**'
+      - '.github/workflows/faceless-shorts-tests.yml'
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: faceless-shorts
+
+    steps:
+      # v5/v6 chạy trên Node 24; bản cũ hơn nhắm Node 20 đã deprecated và bị
+      # runner ép sang 24 kèm cảnh báo.
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      # Bộ test không gọi Remotion — tools/fake_render.py đóng thế. Nên runner
+      # không cần node, ffmpeg hay npm install: chỉ Python là đủ (đã kiểm bằng
+      # cách chạy với PATH chỉ có python3).
+      # tests/test_gen_voice.py cần ffmpeg/ffprobe (co giãn atempo, ghép track,
+      # mux, đo âm lượng). Thiếu chúng thì skipif cho qua âm thầm — mà skip nhìn
+      # y hệt pass, nên cài hẳn để chúng thực sự chạy.
+      - name: Cài ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Cài thư viện
+        run: pip install -r webapp/requirements-dev.txt
+
+      # -ra liệt kê mọi test bị skip; --strict-markers chặn marker gõ sai lặng lẽ.
+      - name: Chạy test
+        run: pytest -ra --strict-markers

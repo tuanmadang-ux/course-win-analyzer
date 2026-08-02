@@ -1,0 +1,4 @@
+# Chạy bộ test: pip install -r webapp/requirements-dev.txt && pytest
+-r requirements.txt
+pytest==8.3.4
+httpx==0.28.1

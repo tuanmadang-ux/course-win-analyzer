@@ -2,8 +2,12 @@ name: faceless-shorts tests
 
 # Chỉ chạy khi đụng tới faceless-shorts/ — dự án gốc ở thư mục cha không liên quan
 # và có deps rất nặng (whisper, opencv), không việc gì phải cài lại ở đây.
+# push chỉ giới hạn ở nhánh mặc định: nhánh feature đã được pull_request lo rồi,
+# để cả hai cùng bắn thì mỗi lần đẩy code chạy CI hai lượt y hệt nhau.
 on:
   push:
+    branches:
+      - claude/ai-video-editing-software-emdm7c
     paths:
       - 'faceless-shorts/**'
       - '.github/workflows/faceless-shorts-tests.yml'
@@ -20,9 +24,11 @@ jobs:
         working-directory: faceless-shorts
 
     steps:
-      - uses: actions/checkout@v4
+      # v5/v6 chạy trên Node 24; bản cũ hơn nhắm Node 20 đã deprecated và bị
+      # runner ép sang 24 kèm cảnh báo.
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 

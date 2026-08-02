@@ -48,6 +48,71 @@ def load_project(project_id: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
+def detect_cuts(
+    job: Job,
+    audio_path: Path,
+    segments: list[dict],
+    cut_settings: CutSettings,
+    duration: float,
+    base: float,
+    span: float,
+) -> tuple[list[dict], str]:
+    """Dò mọi loại đoạn cần cắt. Dùng chung cho phân tích lần đầu và phân tích lại,
+    để hai đường không bao giờ cho kết quả lệch nhau."""
+    cuts: list[dict] = []
+
+    manager.progress(job.id, "Dò khoảng im lặng", base)
+    cuts += silence.silence_cuts(audio_path, cut_settings, duration)
+
+    manager.progress(job.id, "Dò từ đệm", base + span * 0.3)
+    cuts += fillers.filler_cuts(segments, cut_settings)
+
+    topic = ""
+    if has_claude() and (cut_settings.detect_badtakes or cut_settings.detect_offtopic):
+        manager.progress(job.id, "AI đọc transcript tìm câu vấp / lạc đề", base + span * 0.6)
+        result = analyze.claude_analyze(segments, cut_settings)
+        topic = result.get("topic", "")
+        cuts += result["badtakes"]
+        cuts += result["offtopic"]
+        if not result["badtakes"] and cut_settings.detect_badtakes:
+            cuts += analyze.badtake_cuts_offline(segments, cut_settings)
+    else:
+        manager.progress(job.id, "Dò câu bị nói lại", base + span * 0.6)
+        cuts += analyze.badtake_cuts_offline(segments, cut_settings)
+
+    return _dedupe_cuts(cuts, cut_settings), topic
+
+
+def plan_brolls(
+    job: Job,
+    segments: list[dict],
+    broll_settings: BrollSettings,
+    work: Path,
+    base: float,
+    span: float,
+) -> list[dict]:
+    """Chọn vị trí B-roll, tìm clip và tải clip khớp nhất về."""
+    if not broll_settings.enabled or not broll.stock_available():
+        return []
+
+    manager.progress(job.id, "AI chọn vị trí và từ khoá B-roll", base)
+    slots = analyze.broll_plan(segments, broll_settings)
+    if not slots:
+        log.info("Không có kế hoạch B-roll (thiếu ANTHROPIC_API_KEY hoặc AI không chọn được).")
+        return []
+
+    brolls: list[dict] = []
+    for i, slot in enumerate(slots):
+        manager.progress(
+            job.id, "Tìm & tải B-roll",
+            base + span * (i / max(len(slots), 1)), slot["query"],
+        )
+        item = _resolve_broll_slot(slot, broll_settings, work, index=i)
+        if item:
+            brolls.append(item)
+    return brolls
+
+
 def run_analysis(
     job: Job,
     video_path: Path,
@@ -80,42 +145,10 @@ def run_analysis(
     segments = transcript["segments"]
 
     # --- Dò các đoạn cần cắt ---
-    cuts: list[dict] = []
-
-    manager.progress(job.id, "Dò khoảng im lặng", 0.58)
-    cuts += silence.silence_cuts(audio_path, cut_settings, duration)
-
-    manager.progress(job.id, "Dò từ đệm", 0.62)
-    cuts += fillers.filler_cuts(segments, cut_settings)
-
-    topic = ""
-    if has_claude() and (cut_settings.detect_badtakes or cut_settings.detect_offtopic):
-        manager.progress(job.id, "AI đọc transcript tìm câu vấp / lạc đề", 0.66)
-        result = analyze.claude_analyze(segments, cut_settings)
-        topic = result.get("topic", "")
-        cuts += result["badtakes"]
-        cuts += result["offtopic"]
-        if not result["badtakes"] and cut_settings.detect_badtakes:
-            cuts += analyze.badtake_cuts_offline(segments, cut_settings)
-    else:
-        manager.progress(job.id, "Dò câu bị nói lại", 0.66)
-        cuts += analyze.badtake_cuts_offline(segments, cut_settings)
-
-    cuts = _dedupe_cuts(cuts, cut_settings)
+    cuts, topic = detect_cuts(job, audio_path, segments, cut_settings, duration, base=0.58, span=0.12)
 
     # --- B-roll ---
-    brolls: list[dict] = []
-    if broll_settings.enabled and broll.stock_available():
-        manager.progress(job.id, "AI chọn vị trí và từ khoá B-roll", 0.72)
-        slots = analyze.broll_plan(segments, broll_settings)
-        if not slots:
-            log.info("Không có kế hoạch B-roll (thiếu ANTHROPIC_API_KEY hoặc AI không chọn được).")
-        for i, slot in enumerate(slots):
-            frac = 0.75 + 0.18 * (i / max(len(slots), 1))
-            manager.progress(job.id, "Tìm & tải B-roll", frac, slot["query"])
-            item = _resolve_broll_slot(slot, broll_settings, work, index=i)
-            if item:
-                brolls.append(item)
+    brolls = plan_brolls(job, segments, broll_settings, work, base=0.72, span=0.21)
 
     # --- Bám mặt để cắt dọc 9:16 ---
     manager.progress(job.id, "Bám mặt người nói (auto-reframe 9:16)", 0.94)
@@ -150,6 +183,63 @@ def run_analysis(
         "topic": topic,
         "has_claude": has_claude(),
         "has_stock": broll.stock_available(),
+    }
+
+
+def run_reanalysis(
+    job: Job,
+    project: dict,
+    cut_settings: CutSettings,
+    broll_settings: BrollSettings,
+    redo_broll: bool = False,
+) -> dict:
+    """Dò lại các đoạn cắt với ngưỡng mới, KHÔNG bóc lời lại.
+
+    Transcript và quỹ đạo bám mặt không phụ thuộc vào ngưỡng cắt nên được
+    dùng lại nguyên vẹn — đây là toàn bộ chỗ tiết kiệm thời gian.
+    """
+    project_id = project["project_id"]
+    work = manager.job_dir(project_id)
+    duration = project["probe"]["duration"]
+    segments = project.get("transcript", {}).get("segments", [])
+    if not segments:
+        raise RuntimeError("Dự án này chưa có lời thoại — hãy phân tích lại từ đầu.")
+
+    # Audio đã tách sẵn từ lần trước; nếu bị xoá thì tách lại (nhanh, không phải Whisper).
+    audio_path = work / "audio.wav"
+    if not audio_path.exists():
+        video_path = Path(project["video_path"])
+        if not video_path.exists():
+            raise RuntimeError(f"Không tìm thấy file gốc: {video_path}")
+        manager.progress(job.id, "Tách lại âm thanh", 0.05)
+        audio_path = ffmpeg_utils.extract_audio(video_path, audio_path)
+
+    cuts, topic = detect_cuts(job, audio_path, segments, cut_settings, duration, base=0.10, span=0.55)
+
+    if redo_broll:
+        brolls = plan_brolls(job, segments, broll_settings, work, base=0.70, span=0.25)
+    else:
+        # Giữ nguyên B-roll cũ; chỉ tôn trọng việc người dùng tắt hẳn tính năng.
+        brolls = project.get("brolls", [])
+        if not broll_settings.enabled:
+            for b in brolls:
+                b["enabled"] = False
+
+    manager.progress(job.id, "Dựng lại timeline", 0.97)
+    preview = timeline.build_timeline(duration, cuts, brolls, cut_settings)
+
+    project["cuts"] = cuts
+    project["brolls"] = brolls
+    project["topic"] = topic or project.get("topic", "")
+    project["settings"] = {"cut": cut_settings.__dict__, "broll": broll_settings.__dict__}
+    project["stats"] = _stats(duration, preview, cuts, brolls)
+    save_project(project_id, project)
+
+    return {
+        "project_id": project_id,
+        "stats": project["stats"],
+        "topic": project["topic"],
+        "reanalyzed": True,
     }
 
 

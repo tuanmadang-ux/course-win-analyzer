@@ -107,7 +107,15 @@ không gửi video).
      nếu muốn hình khác.
    - *Lời thoại*: toàn bộ transcript, dòng bị cắt hiện gạch ngang.
    - Thanh timeline: vạch đỏ = sẽ cắt, vạch xanh = có B-roll. Bấm để tua.
-5. **Xuất** — chọn 9:16 / tỉ lệ gốc / .srt / nướng phụ đề, rồi **Render ngay**.
+5. **Chưa ưng ngưỡng cắt?** Kéo lại thanh trượt ở bước 2 rồi bấm **🔄 Dò lại với cài đặt mới**.
+   Lời thoại đã bóc được dùng lại nên chỉ mất vài giây thay vì chạy lại Whisper từ đầu —
+   cứ thử thoải mái cho tới khi vừa ý. Tick **tìm lại cả B-roll** nếu muốn đổi luôn hình
+   chèn (cái này mới tốn thêm lượt gọi API).
+
+   > Lưu ý: dò lại sẽ **đặt lại** các tick bạn đã chỉnh tay, vì danh sách đề xuất được
+   > sinh mới theo ngưỡng mới.
+
+6. **Xuất** — chọn 9:16 / tỉ lệ gốc / .srt / nướng phụ đề, rồi **Render ngay**.
 
 ---
 

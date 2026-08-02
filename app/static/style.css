@@ -228,3 +228,10 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .toast.err { border-color: var(--danger); color: #ffbcbe; }
 .toast.ok { border-color: var(--ok); color: #b6f2d8; }
+
+.inline-check {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.inline-check input { accent-color: var(--accent); }
+#reanalyze-hint { margin: 10px 0 0; }

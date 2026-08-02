@@ -81,8 +81,11 @@ async function init() {
 
   $('btn-analyze').onclick = () => startAnalysis(false);
   $('btn-auto').onclick = () => startAnalysis(true);
+  $('btn-reanalyze').onclick = () => startReanalysis();
   $('btn-render').onclick = () => startRender();
   $('btn-toggle-all').onclick = toggleAllCuts;
+
+  if (!c.stock || !c.claude) $('wrap-redo-broll').classList.add('disabled');
 }
 
 function cap(label, ok) {
@@ -241,6 +244,38 @@ async function startAnalysis(auto) {
   }
 }
 
+/* Dò lại các đoạn cắt với ngưỡng mới — dùng lại lời thoại đã bóc. */
+async function startReanalysis() {
+  if (!state.projectId) return toast('Chưa có dự án nào để dò lại', 'err');
+
+  const btn = $('btn-reanalyze');
+  btn.disabled = true;
+  $('progress-title').textContent = 'Đang dò lại (không bóc lời lại)…';
+  $('job-bar').style.width = '0%';
+  show('step-progress');
+
+  try {
+    const { job_id } = await api(`/api/projects/${state.projectId}/reanalyze`, {
+      method: 'POST',
+      body: JSON.stringify({
+        cut: cutSettings(),
+        broll: brollSettings(),
+        redo_broll: $('opt-redo-broll').checked,
+      }),
+    });
+    await pollJob(job_id);
+    await loadProject();
+    hide('step-progress');
+    toast(`Đã dò lại: ${state.cuts.length} đề xuất cắt.`, 'ok');
+    $('step-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    hide('step-progress');
+    toast(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function pollJob(jobId) {
   return new Promise((resolve, reject) => {
     const tick = async () => {
@@ -270,7 +305,16 @@ async function loadProject() {
   state.cuts = p.cuts || [];
   state.brolls = p.brolls || [];
 
-  $('player').src = `/api/projects/${state.projectId}/video`;
+  // Có dự án rồi thì mở khoá nút dò lại (rẻ hơn phân tích lại từ đầu rất nhiều)
+  show('btn-reanalyze');
+  show('wrap-redo-broll');
+  show('reanalyze-hint');
+  $('btn-toggle-all').textContent = 'Bỏ tick tất cả';
+
+  const player = $('player');
+  const wanted = `/api/projects/${state.projectId}/video`;
+  if (!player.src.endsWith(wanted)) player.src = wanted;
+
   renderSummary();
   renderTimeline();
   renderCuts();

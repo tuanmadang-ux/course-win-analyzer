@@ -23,7 +23,7 @@ from app.config import (
     nvenc_available,
 )
 from app.jobs import manager
-from app.models import AnalyzeRequest, BrollSearchRequest, RenderRequest
+from app.models import AnalyzeRequest, BrollSearchRequest, ReanalyzeRequest, RenderRequest
 from app.pipeline import analyze as analyzer
 from app.pipeline import broll as broll_mod
 from app.pipeline import ffmpeg_utils
@@ -145,6 +145,26 @@ def get_project(project_id: str) -> dict:
     for b in slim.get("brolls", []):
         b.pop("candidates", None)
     return slim
+
+
+@app.post("/api/projects/{project_id}/reanalyze")
+def start_reanalysis(project_id: str, req: ReanalyzeRequest) -> dict:
+    """Dò lại các đoạn cắt với ngưỡng mới mà không phải bóc lời lại."""
+    project = service.load_project(project_id)
+    if not project:
+        raise HTTPException(404, "Không tìm thấy dự án.")
+
+    cut_settings = CutSettings.from_dict(req.cut or project.get("settings", {}).get("cut"))
+    broll_settings = BrollSettings.from_dict(req.broll or project.get("settings", {}).get("broll"))
+    if cut_settings.detect_offtopic and not has_claude():
+        cut_settings.detect_offtopic = False
+
+    job = manager.create("reanalyze")
+    manager.run(
+        job,
+        lambda j: service.run_reanalysis(j, project, cut_settings, broll_settings, req.redo_broll),
+    )
+    return {"job_id": job.id}
 
 
 @app.get("/api/projects/{project_id}/video")

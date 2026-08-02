@@ -108,7 +108,15 @@
     <div class="actions">
       <button id="btn-analyze" class="primary">Phân tích &amp; để tôi duyệt</button>
       <button id="btn-auto" class="ghost">⚡ Auto — làm hết, xuất luôn</button>
+      <button id="btn-reanalyze" class="ghost hidden">🔄 Dò lại với cài đặt mới</button>
+      <label class="inline-check hidden" id="wrap-redo-broll">
+        <input type="checkbox" id="opt-redo-broll"> tìm lại cả B-roll
+      </label>
     </div>
+    <p class="muted small hidden" id="reanalyze-hint">
+      Chỉnh ngưỡng ở trên rồi bấm <b>Dò lại</b> — chỉ vài giây vì không phải bóc lời lại.
+      Các tick bạn đã chỉnh tay sẽ bị đặt lại theo ngưỡng mới.
+    </p>
   </section>
 
   <!-- ============ TIẾN ĐỘ ============ -->

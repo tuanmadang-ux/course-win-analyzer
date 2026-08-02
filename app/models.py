@@ -14,6 +14,12 @@ class AnalyzeRequest(BaseModel):
     broll: dict[str, Any] | None = None
 
 
+class ReanalyzeRequest(BaseModel):
+    cut: dict[str, Any] | None = None
+    broll: dict[str, Any] | None = None
+    redo_broll: bool = False
+
+
 class RenderRequest(BaseModel):
     project_id: str
     cuts: list[dict[str, Any]] = Field(default_factory=list)

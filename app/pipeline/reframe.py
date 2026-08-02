@@ -23,10 +23,19 @@ def build_face_track(video_path: Path, duration: float, sample_interval: float =
         log.warning("Không nạp được OpenCV (%s) — dùng crop giữa khung.", exc)
         return []
 
-    cascade_path = getattr(cv2.data, "haarcascades", "") + "haarcascade_frontalface_default.xml"
-    cascade = cv2.CascadeClassifier(cascade_path)
-    if cascade.empty():
-        log.warning("Không nạp được Haar cascade — dùng crop giữa khung.")
+    # OpenCV 5.x đã bỏ CascadeClassifier. Nếu không có, lùi về crop giữa khung
+    # thay vì làm chết cả job phân tích.
+    try:
+        cascade_dir = getattr(getattr(cv2, "data", None), "haarcascades", "")
+        cascade = cv2.CascadeClassifier(cascade_dir + "haarcascade_frontalface_default.xml")
+        if cascade.empty():
+            raise RuntimeError("file cascade rỗng hoặc không tìm thấy")
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "Không dùng được bộ dò mặt Haar (%s) — video dọc sẽ crop giữa khung. "
+            "Muốn bật lại tính năng bám mặt: pip install 'opencv-python-headless<5'.",
+            exc,
+        )
         return []
 
     cap = cv2.VideoCapture(str(video_path))

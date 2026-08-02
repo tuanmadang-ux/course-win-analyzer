@@ -14,7 +14,8 @@ anthropic>=0.69.0
 httpx==0.28.1
 
 # --- Bám mặt người nói để cắt dọc 9:16 ---
-opencv-python-headless==4.10.0.84
+# Bám mặt người nói dùng Haar cascade — OpenCV 5.x đã bỏ API này, phải giữ ở 4.x
+opencv-python-headless>=4.10,<5
 numpy>=1.26,<3
 
 # --- Đọc biến môi trường từ file .env ---

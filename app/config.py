@@ -54,20 +54,40 @@ def ffmpeg_available() -> bool:
     return shutil.which(FFMPEG) is not None and shutil.which(FFPROBE) is not None
 
 
+_NVENC_CACHE: bool | None = None
+
+
 def nvenc_available() -> bool:
-    """Kiểm tra ffmpeg có build kèm h264_nvenc hay không."""
+    """Kiểm tra NVENC có THỰC SỰ dùng được không.
+
+    Chỉ xem `ffmpeg -encoders` là chưa đủ: nhiều bản ffmpeg có sẵn h264_nvenc
+    nhưng máy lại thiếu driver NVIDIA (libcuda), lúc đó encode sẽ chết giữa
+    chừng. Nên ở đây encode thử đúng 1 khung hình rồi mới kết luận.
+    """
+    global _NVENC_CACHE
+    if _NVENC_CACHE is not None:
+        return _NVENC_CACHE
+
     if not USE_NVENC or not ffmpeg_available():
+        _NVENC_CACHE = False
         return False
+
     try:
-        out = subprocess.run(
-            [FFMPEG, "-hide_banner", "-encoders"],
+        probe = subprocess.run(
+            [
+                FFMPEG, "-hide_banner", "-loglevel", "error",
+                "-f", "lavfi", "-i", "color=black:s=256x256:d=0.1",
+                "-c:v", "h264_nvenc", "-frames:v", "1",
+                "-f", "null", "-",
+            ],
             capture_output=True,
             text=True,
-            timeout=20,
+            timeout=30,
         )
-        return "h264_nvenc" in out.stdout
+        _NVENC_CACHE = probe.returncode == 0
     except Exception:
-        return False
+        _NVENC_CACHE = False
+    return _NVENC_CACHE
 
 
 # --- Tham số cắt mặc định ---------------------------------------------------

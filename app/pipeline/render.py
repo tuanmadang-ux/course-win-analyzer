@@ -34,8 +34,21 @@ def target_size(probe: dict, settings: RenderSettings, vertical: bool) -> tuple[
     return w, h
 
 
+# Vị trí giữ chỗ cho bộ mã hoá trong câu lệnh; được thay lúc chạy để có thể
+# đổi từ GPU sang CPU giữa chừng nếu NVENC gãy.
+VENC = "@VENC@"
+
+_state: dict[str, bool | None] = {"nvenc": None}
+
+
+def _nvenc_on() -> bool:
+    if _state["nvenc"] is None:
+        _state["nvenc"] = nvenc_available()
+    return bool(_state["nvenc"])
+
+
 def _video_encoder(settings: RenderSettings) -> list[str]:
-    if nvenc_available():
+    if _nvenc_on():
         return [
             "-c:v", "h264_nvenc",
             "-preset", "p5",
@@ -50,6 +63,32 @@ def _video_encoder(settings: RenderSettings) -> list[str]:
         "-crf", str(settings.crf),
         "-pix_fmt", "yuv420p",
     ]
+
+
+def _expand(cmd: list[str], settings: RenderSettings) -> list[str]:
+    out: list[str] = []
+    for token in cmd:
+        if token == VENC:
+            out.extend(_video_encoder(settings))
+        else:
+            out.append(token)
+    return out
+
+
+def run_encode(cmd: list[str], settings: RenderSettings) -> None:
+    """Chạy lệnh encode. Nếu NVENC gãy (thiếu driver, GPU bận) thì tự chuyển
+    sang CPU và thử lại — một lần, cho cả phiên render còn lại."""
+    try:
+        run(_expand(cmd, settings))
+    except FFmpegError as exc:
+        message = str(exc).lower()
+        gpu_problem = "nvenc" in message or "cuda" in message
+        if _nvenc_on() and gpu_problem:
+            log.warning("NVENC không dùng được, chuyển sang CPU (libx264) và render lại.")
+            _state["nvenc"] = False
+            run(_expand(cmd, settings))
+        else:
+            raise
 
 
 def _crop_filter_main(probe: dict, out_w: int, out_h: int, center_x: float) -> str:
@@ -96,14 +135,14 @@ def _render_main_clip(
     cmd += [
         "-vf", _crop_filter_main(probe, out_w, out_h, center_x),
         "-r", f"{fps:.4f}",
-        *_video_encoder(settings),
+        VENC,
         "-c:a", "aac", "-b:a", settings.audio_bitrate, "-ar", "48000", "-ac", "2",
         "-map", "0:v:0",
         "-map", ("1:a:0" if not has_audio else "0:a:0"),
         "-shortest",
         str(dest),
     ]
-    run(cmd)
+    run_encode(cmd, settings)
 
 
 def _render_broll_clip(
@@ -131,14 +170,14 @@ def _render_broll_clip(
     cmd += [
         "-vf", _fill_filter(out_w, out_h),
         "-r", f"{fps:.4f}",
-        *_video_encoder(settings),
+        VENC,
         "-c:a", "aac", "-b:a", settings.audio_bitrate, "-ar", "48000", "-ac", "2",
         "-map", "0:v:0",
         "-map", audio_map,
         "-t", f"{dur:.3f}",
         str(dest),
     ]
-    run(cmd)
+    run_encode(cmd, settings)
 
 
 def _concat(parts: list[Path], dest: Path, work_dir: Path) -> None:
@@ -179,15 +218,15 @@ def burn_subtitles(src: Path, srt: Path, dest: Path, settings: RenderSettings, v
         "BorderStyle=1,Outline=3,Shadow=0,Alignment=2,MarginV=%d"
         % (22 if vertical else 18, 120 if vertical else 60)
     )
-    run([
+    run_encode([
         FFMPEG, "-y", "-hide_banner", "-loglevel", "error",
         "-i", str(src),
         "-vf", f"subtitles='{_escape_for_filter(srt)}':force_style='{style}'",
-        *_video_encoder(settings),
+        VENC,
         "-c:a", "copy",
         "-movflags", "+faststart",
         str(dest),
-    ])
+    ], settings)
     return dest
 
 

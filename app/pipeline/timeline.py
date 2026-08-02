@@ -91,6 +91,11 @@ def build_timeline(
 
         cursor = keep[0]
         for (bs, be), b in overlaps:
+            # B-roll nằm lọt trong đoạn B-roll trước đó thì bỏ qua, nếu không sẽ
+            # sinh clip có thời lượng âm và đẩy lệch mọi clip phía sau.
+            if be <= cursor + 0.05:
+                continue
+            bs = max(bs, cursor)
             if bs > cursor:
                 clips.append(_make_clip("main", cursor, bs, out_cursor))
                 out_cursor += bs - cursor

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 import traceback
@@ -15,6 +16,9 @@ from typing import Any, Callable
 from app.config import JOB_DIR
 
 log = logging.getLogger(__name__)
+
+# Id do máy sinh: hex/uuid. Bất cứ thứ gì khác đều là bịa.
+SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 @dataclass
@@ -95,6 +99,13 @@ class JobManager:
     # -- lưu / nạp ---------------------------------------------------------
 
     def job_dir(self, job_id: str) -> Path:
+        """Thư mục làm việc của một job/dự án.
+
+        Đây là nơi duy nhất sinh đường dẫn từ id, nên cũng là nơi chặn id bịa
+        kiểu `../../etc` — id thật luôn là chuỗi hex do máy sinh ra.
+        """
+        if not SAFE_ID.match(job_id or ""):
+            raise ValueError(f"Mã dự án không hợp lệ: {job_id!r}")
         d = JOB_DIR / job_id
         d.mkdir(parents=True, exist_ok=True)
         return d

@@ -37,7 +37,10 @@ def save_project(project_id: str, data: dict) -> None:
 
 
 def load_project(project_id: str) -> dict | None:
-    path = project_path(project_id)
+    try:
+        path = project_path(project_id)
+    except ValueError:
+        return None
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))

@@ -93,6 +93,14 @@ async def upload(file: UploadFile = File(...)) -> dict:
     }
 
 
+def _job_dir(project_id: str) -> Path:
+    """Thư mục dự án, đổi id bịa thành 404 thay vì để lỗi lọt ra ngoài."""
+    try:
+        return manager.job_dir(project_id)
+    except ValueError as exc:
+        raise HTTPException(404, "Mã dự án không hợp lệ.") from exc
+
+
 def _find_upload(upload_id: str) -> Path:
     for p in UPLOAD_DIR.glob(f"{upload_id}.*"):
         return p
@@ -178,21 +186,29 @@ def project_video(project_id: str):
     return FileResponse(path, media_type="video/mp4", filename=path.name)
 
 
+def _safe_file(base: Path, relative: str, missing_msg: str) -> Path:
+    """Giải đường dẫn con và bắt buộc nó nằm TRONG `base`.
+
+    Phải dùng is_relative_to chứ không so tiền tố chuỗi: thư mục `abc-secret`
+    có tiền tố trùng với `abc`, nên so chuỗi sẽ cho đọc chéo sang dự án khác.
+    """
+    base = base.resolve()
+    target = (base / relative).resolve()
+    if not target.is_relative_to(base) or not target.is_file():
+        raise HTTPException(404, missing_msg)
+    return target
+
+
 @app.get("/api/projects/{project_id}/media/{sub_path:path}")
 def project_media(project_id: str, sub_path: str):
-    base = manager.job_dir(project_id).resolve()
-    target = (base / sub_path).resolve()
-    if not str(target).startswith(str(base)) or not target.exists():
-        raise HTTPException(404, "Không tìm thấy file.")
+    target = _safe_file(_job_dir(project_id), sub_path, "Không tìm thấy file.")
     return FileResponse(target)
 
 
 @app.get("/api/projects/{project_id}/output/{name}")
 def project_output(project_id: str, name: str):
-    base = (manager.job_dir(project_id) / "output").resolve()
-    target = (base / Path(name).name).resolve()
-    if not str(target).startswith(str(base)) or not target.exists():
-        raise HTTPException(404, "Chưa có file này. Hãy render trước.")
+    base = _job_dir(project_id) / "output"
+    target = _safe_file(base, Path(name).name, "Chưa có file này. Hãy render trước.")
     return FileResponse(target, filename=target.name)
 
 
@@ -228,7 +244,7 @@ def research_broll(project_id: str, broll_id: str, req: BrollSearchRequest) -> d
     if not local:
         raise HTTPException(502, "Tải clip về thất bại. Thử lại hoặc đổi từ khoá.")
 
-    work = manager.job_dir(project_id)
+    work = _job_dir(project_id)
     rel_thumb = f"broll_thumbs/{broll_id}_{chosen['id']}.jpg"
     ffmpeg_utils.make_thumbnail(local, work / rel_thumb, at=0.5, width=320)
 

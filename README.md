@@ -1,3 +1,12 @@
+Kho này có **hai phần mềm chạy local**, dùng chung file `.env`:
+
+| Chạy | Làm gì |
+|---|---|
+| `python run.py` | [✂️ **Trợ lý cắt video**](#-trợ-lý-cắt-video) — cắt im lặng/từ đệm/vấp, chèn B-roll, xuất 9:16 |
+| `python run_radar.py` | [📡 **Radar đối thủ**](#-radar-đối-thủ) — đào insight từ bình luận đối thủ, viết bài mới, đo hiệu suất |
+
+---
+
 # ✂️ Trợ lý cắt video
 
 Phần mềm chạy trên máy bạn (web app local). Thả video vào → nó tự bóc lời, tìm chỗ
@@ -184,3 +193,137 @@ Nhờ vậy tiếng nói không bao giờ bị lệch khỏi hình dù cắt bao
 Video từ Pexels và Pixabay dùng được cho mục đích thương mại, không bắt buộc ghi nguồn.
 Phần mềm vẫn lưu lại tên tác giả và link trang gốc trong `data/jobs/<id>/project.json`
 nếu bạn muốn ghi credit.
+
+---
+---
+
+# 📡 Radar đối thủ
+
+```bash
+python run_radar.py      # mở http://127.0.0.1:8010
+```
+
+Đọc phần bình luận dưới bài của đối thủ để biết khách đang **hỏi gì, nghi ngờ gì, bức
+xúc gì mà bài gốc chưa gỡ được** — rồi viết bài mới của bạn nhắm thẳng vào chỗ đó.
+
+Không cần API key vẫn dùng được: dán bài + bình luận bằng tay → hệ thống chấm điểm,
+gom cụm, rút insight, rồi giao dàn ý cho bạn viết.
+
+## Luồng 5 bước
+
+```
+1. Thu thập  →  2. Bài đã thu  →  3. Insight  →  4. Duyệt & đăng  →  5. Hiệu suất
+```
+
+| Bước | Việc | Cần key? |
+|---|---|---|
+| 1 | Lấy bài + bình luận về (3 cách: dán tay / nhập file / Apify) | Chỉ cách 3 mới cần |
+| 2 | Chấm điểm từng bình luận, bỏ "hay quá ạ", giữ câu hỏi & phản đối | Không |
+| 2 | Gom bình luận cùng ý về một cụm (TF-IDF, hiểu tiếng Việt không dấu) | Không |
+| 3 | Tổng hợp thành insight + **chỉ ra bài gốc còn thiếu chỗ nào** | Có (không key thì lấy bình luận tiêu biểu) |
+| 3 | Viết bài mới: 3 hook + thân bài + CTA, 4 định dạng | Có (không key thì ra dàn ý) |
+| 3 | Đo độ trùng lặp với bài gốc, chặn bài chép | Không |
+| 4 | Bạn đọc lại, sửa, duyệt → lên lịch khung giờ vàng | Không |
+| 4 | Đẩy lịch lên Fanpage **của bạn** qua Graph API | Có `FB_PAGE_TOKEN` |
+| 5 | Kéo chỉ số về, chỉ ra công thức nào đang ăn nhất | Có `FB_PAGE_TOKEN` |
+
+## Ba cách lấy dữ liệu về
+
+**① Dán tay** (luôn dùng được) — mở bài đối thủ, bấm hết "Xem thêm bình luận", quét
+chọn, dán vào ô. Bộ tách tự cắt từng bình luận và bỏ dòng rác `Thích · Trả lời · 2 ngày`.
+
+**② Nhập file** — `.json`, `.jsonl`, `.csv` bạn đã xuất từ công cụ khác. Không cần đúng
+tên cột: hệ thống thử lần lượt `text`/`message`/`content`, `likes`/`likesCount`… và tự
+biết bản ghi nào là bài, bản ghi nào là bình luận.
+
+**③ Apify** — điền `APIFY_TOKEN` + `APIFY_ACTOR_POSTS` vào `.env` rồi dán link fanpage.
+Phần mềm gọi API công khai của Apify bằng token **của bạn**; hạn mức và việc tuân thủ
+điều khoản nền tảng thuộc về tài khoản Apify của bạn.
+
+> Muốn dùng nhà cung cấp khác? Viết một hàm trả về `list[dict]` rồi gắn vào
+> `radar/ingest/__init__.py` — phần còn lại của luồng chạy y nguyên.
+
+## Ba chốt chặn đặt cứng trong code
+
+Đây là phần đáng đọc nhất, vì nó quyết định bạn có bị bóp reach hay dính bản quyền không.
+
+**1. Ẩn danh người bình luận ngay ở cửa vào.** Tên người bình luận bị băm thành mã
+`nd_xxxxxxxxxx` (muối riêng theo máy, không tra ngược được). Số điện thoại, email, thẻ
+`@tên`, link trong nội dung bị thay bằng `[sđt]` `[email]` `[tên]` `[link]`. Kho dữ liệu
+của bạn giữ được *điều họ nói*, không giữ *họ là ai*.
+
+**2. Chặn bài "xào" quá tay.** Mỗi bài AI viết ra đều bị đo hai chỉ số so với bài gốc:
+
+- tỉ lệ trùng cụm 5 tiếng (ngưỡng 28%)
+- chuỗi từ giống hệt dài nhất (ngưỡng 12 từ)
+
+Vượt ngưỡng → AI được yêu cầu viết lại một lần; vẫn vượt → bài bị gắn cờ đỏ và
+**không duyệt được** cho tới khi bạn sửa. Sửa xong hệ thống đo lại ngay.
+
+**3. Không có gì tự lên trang.** Bài phải được bấm **Duyệt** thủ công mới lên lịch hay
+đăng được. Không có công tắc nào tắt bước này.
+
+Phần mềm **không** đăng nhập Facebook, không dùng cookie của bạn, không né giới hạn tần
+suất. Graph API chỉ dùng cho Fanpage bạn quản trị (đăng bài + đọc chỉ số của chính bạn).
+
+## Khung giờ vàng
+
+Tính từ chính bài của trang bạn: gom theo giờ trong ngày, chấm điểm
+`tim + 2×bình_luận + 3×chia_sẻ`, lấy giờ mạnh nhất. Dưới 8 bài thì chưa đủ mẫu →
+dùng mốc phổ biến ở VN (11–13h, 19–22h). Hai bài lên lịch luôn cách nhau ít nhất 4 giờ.
+
+Đặt `TZ_OFFSET_HOURS=7` trong `.env` cho giờ Việt Nam.
+
+## Đo hiệu suất
+
+Tab 5 không chỉ liệt kê số like. Nó nhóm các bài đã đăng theo **dạng insight**
+(câu hỏi / phản đối / trải nghiệm) và theo **định dạng** (bài dài / gạch đầu dòng /
+Reels / carousel), rồi nói thẳng công thức nào đang cho tương tác cao nhất để bạn nhân
+bản. Bài đăng dưới 6 giờ chỉ ghi nhận, chưa đem xếp hạng.
+
+## Cấu trúc mã nguồn
+
+```
+run_radar.py               khởi động server + mở trình duyệt
+radar/
+  config.py                khoá API, ngưỡng lọc, ngưỡng chống trùng lặp
+  store.py                 SQLite: sources, posts, comments, insights, drafts, metrics
+  llm.py                   gọi Claude, ép trả JSON đúng schema
+  main.py                  route API
+  service.py               điều phối các bước
+  jobs.py                  tác vụ nền + báo tiến độ
+  ingest/
+    normalize.py           chuẩn hoá tên trường lệch nhau + ẩn danh
+    paste.py               tách khối chữ dán tay thành từng bình luận
+    filefeed.py            đọc CSV/JSON/JSONL, phân biệt bài với bình luận
+    apify.py               gọi actor Apify bằng token của bạn
+  mine/
+    text.py                tách tiếng Việt, bỏ dấu, bigram, n-gram
+    quality.py             chấm điểm & phân loại bình luận (offline)
+    cluster.py             gom bình luận cùng ý (TF-IDF + cosine)
+    insight.py             tổng hợp cụm thành insight + "bài gốc còn thiếu"
+  create/
+    write.py               viết hook + thân bài + CTA theo 4 định dạng
+    originality.py         đo độ trùng lặp, chặn bài chép
+  publish/
+    facebook.py            Graph API — chỉ cho trang của bạn
+    schedule.py            khung giờ vàng + xếp lịch
+  measure/                 kéo chỉ số, tìm công thức hiệu quả nhất
+  static/                  giao diện web (không dùng thư viện ngoài)
+data/radar/radar.db        toàn bộ dữ liệu (đã .gitignore)
+```
+
+Không cần cài thêm thư viện nào ngoài `requirements.txt` sẵn có.
+
+## Xử lý sự cố
+
+| Triệu chứng | Cách xử lý |
+|---|---|
+| Dán bình luận vào mà tách sai | Dán lại, để mỗi bình luận cách nhau một dòng trống |
+| "Không cái nào đủ chất" | Bài đó toàn khen xã giao. Hạ *Bình luận ngắn hơn … chữ thì bỏ* xuống 3 |
+| Insight toàn cụm 1 bình luận | Bình thường với bài ít bình luận. Thu thêm bài của cùng đối thủ |
+| Bài viết ra bị gắn cờ đỏ liên tục | Thêm `BRAND_VOICE` vào `.env` để AI có giọng riêng mà bám vào |
+| Apify báo 404 actor | Tên actor phải đúng dạng `user/ten-actor`, xem lại `APIFY_ACTOR_POSTS` |
+| Apify chạy xong mà 0 bài | Actor bạn chọn dùng schema đầu vào khác — sửa `APIFY_POSTS_INPUT` trong `.env` |
+| Graph API báo lỗi quyền | Page Access Token cần quyền `pages_manage_posts` + `pages_read_engagement` |
+| Tab Hiệu suất trống | Chỉ đếm bài đăng **qua hệ thống**; bài đăng tay không có trong đó |

@@ -49,6 +49,15 @@ BRAND_CTA = (os.getenv("BRAND_CTA") or "").strip()
 
 RADAR_PORT = int(os.getenv("RADAR_PORT", "8010"))
 
+# --- Ra lệnh qua Telegram ---------------------------------------------------
+TELEGRAM_BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+# Để trống thì người bấm /start đầu tiên trở thành chủ bot, khoá luôn từ đó.
+TELEGRAM_ALLOWED_IDS = tuple(
+    int(x) for x in (os.getenv("TELEGRAM_ALLOWED_IDS") or "").replace(" ", "").split(",")
+    if x.lstrip("-").isdigit()
+)
+OWNER_PATH = RADAR_DIR / "telegram_owner.json"
+
 # Múi giờ để tính khung giờ vàng (số giờ lệch so với UTC). VN = +7.
 TZ_OFFSET_HOURS = float(os.getenv("TZ_OFFSET_HOURS", "7"))
 
@@ -63,6 +72,10 @@ def has_apify() -> bool:
 
 def has_page() -> bool:
     return bool(FB_PAGE_ID and FB_PAGE_TOKEN)
+
+
+def has_telegram() -> bool:
+    return bool(TELEGRAM_BOT_TOKEN)
 
 
 # ---------------------------------------------------------------------------

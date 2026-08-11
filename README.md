@@ -1,9 +1,10 @@
-Kho này có **hai phần mềm chạy local**, dùng chung file `.env`:
+Kho này có **ba phần mềm chạy local**, dùng chung file `.env`:
 
 | Chạy | Làm gì |
 |---|---|
 | `python run.py` | [✂️ **Trợ lý cắt video**](#-trợ-lý-cắt-video) — cắt im lặng/từ đệm/vấp, chèn B-roll, xuất 9:16 |
 | `python run_radar.py` | [📡 **Radar đối thủ**](#-radar-đối-thủ) — đào insight từ bình luận đối thủ, viết bài mới, đo hiệu suất |
+| `python run_bot.py` | [🤖 **Bot Telegram**](#-ra-lệnh-qua-telegram) — ra lệnh cho Radar từ điện thoại |
 
 ---
 
@@ -327,3 +328,80 @@ Không cần cài thêm thư viện nào ngoài `requirements.txt` sẵn có.
 | Apify chạy xong mà 0 bài | Actor bạn chọn dùng schema đầu vào khác — sửa `APIFY_POSTS_INPUT` trong `.env` |
 | Graph API báo lỗi quyền | Page Access Token cần quyền `pages_manage_posts` + `pages_read_engagement` |
 | Tab Hiệu suất trống | Chỉ đếm bài đăng **qua hệ thống**; bài đăng tay không có trong đó |
+
+---
+
+# 🤖 Ra lệnh qua Telegram
+
+```bash
+python run_bot.py
+```
+
+Cùng một kho dữ liệu với web app. Dán bài lúc đang ngồi cà phê, về nhà mở web lên
+là thấy y nguyên.
+
+## Chạy trong 2 phút
+
+1. Mở Telegram, nhắn cho **@BotFather** → gõ `/newbot` → đặt tên
+2. Copy dãy token nó đưa, dán vào `.env`:
+   ```
+   TELEGRAM_BOT_TOKEN=123456:ABC...
+   ```
+3. `python run_bot.py`
+4. Mở chat với bot của bạn, bấm **/start**
+
+Long polling nên **không cần webhook, không cần ngrok, không cần mở cổng** — chạy
+từ máy ở nhà là được.
+
+## Dùng thế nào
+
+Cách nhanh nhất là **cứ dán, không cần lệnh**: tin đầu tiên là bài gốc của đối thủ,
+các tin sau là bình luận (dán bao nhiêu lần cũng được, bot cộng dồn và đếm lại sau
+mỗi lần). Dán xong bấm nút **🔎 Đào insight ngay**.
+
+Rồi mọi thứ đi bằng nút bấm:
+
+```
+Insight  →  [✍️ Viết bài] [🎬 Kịch bản Reels] [🙈 Bỏ qua]
+Bài nháp →  [✅ Duyệt] [🚫 Bỏ] [✏️ Sửa hook] [✏️ Sửa thân bài] [🗑 Xoá]
+Đã duyệt →  [🗓 Lên lịch giờ vàng] [📢 Đăng ngay]
+```
+
+Bấm **✏️ Sửa** thì tin nhắn tiếp theo của bạn thay thế đúng phần đó, hệ thống đo lại
+độ trùng lặp ngay và báo còn cảnh báo hay không. Sửa bài đã duyệt thì nó **tự hạ về
+chờ duyệt** — bắt bạn đọc lại lần nữa trước khi nó lên trang.
+
+| Lệnh | Việc |
+|---|---|
+| `/bai` `/bl` | nói rõ tin tiếp theo là bài gốc hay bình luận |
+| `/dao` | đào insight từ những gì vừa dán |
+| `/insight` | xem lại insight đang chờ |
+| `/nhap [trạng thái]` | bài nháp — `draft` / `approved` / `scheduled` / `published` |
+| `/lich` | khung giờ vàng + bài sắp đăng + bài tới giờ mà chưa đăng |
+| `/baocao` | công thức nào đang cho tương tác cao nhất |
+| `/nguon` `/themnguon Tên \| link` | chọn / thêm đối thủ |
+| `/huy` | thoát chế độ đang dán dở hoặc đang sửa |
+| `/trangthai` | key nào đã cắm, đang có bao nhiêu insight và bài chờ |
+
+## Ai ra lệnh được
+
+Token bot không phải bí mật tuyệt đối, mà bot này thì đăng bài lên Fanpage của bạn
+và tiêu tiền API của bạn — nên quyền ra lệnh bị khoá:
+
+- Người bấm `/start` **đầu tiên** thành chủ bot, ghi vào
+  `data/radar/telegram_owner.json`. Từ đó người khác nhắn vào bị từ chối. Muốn đổi
+  chủ thì xoá file đó.
+- Hoặc điền sẵn `TELEGRAM_ALLOWED_IDS=123456789,987654321` trong `.env`.
+
+Ba chốt chặn của Radar vẫn nguyên vẹn trên Telegram: không tự đăng khi chưa duyệt,
+không duyệt được bài còn cảnh báo trùng lặp, không lưu tên người bình luận.
+
+## Xử lý sự cố
+
+| Triệu chứng | Cách xử lý |
+|---|---|
+| Bot không trả lời | Xem cửa sổ chạy `run_bot.py` — mất mạng thì nó tự thử lại, có ghi log |
+| "Bot này đã có chủ rồi" | Xoá `data/radar/telegram_owner.json` rồi `/start` lại |
+| Bài viết ra chỉ là dàn ý | Chưa có `ANTHROPIC_API_KEY` trong `.env` |
+| Không có nút "Đăng ngay" | Chưa nối Fanpage. Duyệt xong bấm lên lịch rồi đăng tay |
+| Bot đứng im một lúc khi viết bài | Bình thường — gọi Claude mất vài chục giây, bot vẫn nghe lệnh khác |

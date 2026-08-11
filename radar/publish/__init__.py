@@ -26,10 +26,7 @@ class PublishBlocked(RuntimeError):
 def _gate(draft: dict) -> str:
     """Kiểm tra điều kiện đăng. Trả về nội dung bài nếu qua, ném lỗi nếu không."""
     if draft.get("warnings"):
-        raise PublishBlocked(
-            "Bài còn cảnh báo trùng lặp với bài gốc. Sửa lại nội dung rồi duyệt lại: "
-            + " ".join(draft["warnings"])
-        )
+        raise PublishBlocked("Bài còn cảnh báo chưa xử lý: " + " ".join(draft["warnings"]))
     if draft.get("status") not in ("approved", "scheduled"):
         raise PublishBlocked("Bài chưa được duyệt. Đọc lại rồi bấm Duyệt trước đã.")
 
@@ -45,7 +42,8 @@ def approve(draft_id: str) -> dict:
         raise PublishBlocked("Không tìm thấy bài.")
     if draft.get("warnings"):
         raise PublishBlocked(
-            "Không duyệt được khi còn cảnh báo trùng lặp. Sửa nội dung, hệ thống sẽ đo lại."
+            "Không duyệt được khi bài còn cảnh báo. Sửa nội dung là hệ thống đo lại ngay. "
+            + " ".join(draft["warnings"])
         )
     return store.update_draft(draft_id, status="approved")  # type: ignore[return-value]
 

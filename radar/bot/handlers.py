@@ -323,7 +323,9 @@ class Handlers:
 
         warnings = ""
         if draft.get("warnings"):
-            warnings = "\n\n⚠️ <b>" + "\n".join(esc(w) for w in draft["warnings"]) + "</b>"
+            # Mỗi dòng tự đóng thẻ của nó: split_long() cắt theo ranh giới dòng,
+            # thẻ trải qua nhiều dòng mà bị cắt là Telegram trả 400 "can't parse entities".
+            warnings = "\n\n" + "\n".join(f"⚠️ <b>{esc(w)}</b>" for w in draft["warnings"])
 
         alt_hooks = ""
         hooks = draft.get("hooks") or []

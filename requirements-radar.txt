@@ -1,0 +1,24 @@
+# Chỉ cần cho Radar đối thủ (run_radar.py) và bot Telegram (run_bot.py).
+#
+# Dùng file này nếu bạn KHÔNG dùng trợ lý cắt video: nó bỏ qua Whisper và
+# OpenCV — hai thứ nặng gần 1GB và cần đúng wheel cho máy bạn. Cài từ đây
+# chỉ mất vài chục giây.
+#
+#   pip install -r requirements-radar.txt
+#
+# Muốn dùng cả ba phần mềm thì cài requirements.txt (đã bao gồm các gói dưới đây).
+
+# --- Web server ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.4
+
+# --- Gọi Claude để đào insight + viết bài (có thể bỏ qua, lúc đó chỉ ra dàn ý) ---
+anthropic>=0.69.0
+
+# --- Gọi Apify, Graph API, Telegram ---
+httpx==0.28.1
+
+# --- Đọc biến môi trường từ file .env ---
+python-dotenv==1.0.1

@@ -201,8 +201,19 @@ nếu bạn muốn ghi credit.
 # 📡 Radar đối thủ
 
 ```bash
-python run_radar.py      # mở http://127.0.0.1:8010
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r requirements-radar.txt
+cp .env.example .env                 # Windows: copy .env.example .env
+
+python run_radar.py                  # mở http://127.0.0.1:8010
 ```
+
+> Chỉ dùng Radar thì cài `requirements-radar.txt` (~80MB, vài chục giây).
+> `requirements.txt` là bản đầy đủ cho cả trợ lý cắt video — nó kéo thêm Whisper
+> và OpenCV, nặng gần 1GB và cần đúng wheel cho máy bạn.
+
+Chưa cần điền key nào vào `.env` cũng chạy được ngay.
 
 Đọc phần bình luận dưới bài của đối thủ để biết khách đang **hỏi gì, nghi ngờ gì, bức
 xúc gì mà bài gốc chưa gỡ được** — rồi viết bài mới của bạn nhắm thẳng vào chỗ đó.
@@ -341,6 +352,8 @@ Cùng một kho dữ liệu với web app. Dán bài lúc đang ngồi cà phê,
 là thấy y nguyên.
 
 ## Chạy trong 2 phút
+
+Cài giống Radar ở trên (`pip install -r requirements-radar.txt`), rồi:
 
 1. Mở Telegram, nhắn cho **@BotFather** → gõ `/newbot` → đặt tên
 2. Copy dãy token nó đưa, dán vào `.env`:

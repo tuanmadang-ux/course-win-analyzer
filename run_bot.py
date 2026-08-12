@@ -47,8 +47,10 @@ def main() -> int:
         bot = Bot(TELEGRAM_BOT_TOKEN)
         me = bot.tg.me()
     except TelegramError as exc:
-        print(f"\n  ✗ Không kết nối được Telegram: {exc}")
-        print("    Kiểm tra lại TELEGRAM_BOT_TOKEN trong .env và mạng của máy.\n")
+        print(f"\n  ✗ {exc}")
+        print("    · Token sai hoặc đã bị thu hồi → xin lại ở @BotFather")
+        print("    · Báo 403/407 hoặc treo → mạng đang chặn api.telegram.org")
+        print("      (mạng công ty, tường lửa, hoặc cần proxy). Thử mạng khác.\n")
         return 1
 
     print(f"  ✓ Bot: @{me.get('username')}")

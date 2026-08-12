@@ -8,6 +8,7 @@ người nói, không phải đoán mò.
 from __future__ import annotations
 
 import logging
+import re
 import time
 import wave
 from pathlib import Path
@@ -21,8 +22,16 @@ log = logging.getLogger(__name__)
 
 ProgressFn = Callable[[float, str], None]
 
-MAX_RETRIES = 3
-RETRY_WAIT = 6.0
+# Hạn mức miễn phí của Gemini TTS là 3 lượt/phút, mà mỗi câu thoại là một lượt.
+# Nên chạm trần là chuyện BÌNH THƯỜNG với kịch bản dài, không phải sự cố: cứ chờ
+# đúng khoảng server bảo rồi đọc tiếp. Chờ mặc định phải hơn 60 giây, vì cửa sổ
+# tính hạn mức của Google dài một phút — chờ ngắn hơn là chạm trần lại ngay.
+MAX_RETRIES = 5
+RETRY_WAIT = 62.0
+
+# Google gợi ý sẵn thời gian chờ trong thông báo lỗi, ví dụ "retry in 58.5s"
+# hoặc "retryDelay": "58s". Bám theo con số đó thì chờ vừa đủ, không phí thời gian.
+RETRY_HINT = re.compile(r'retry(?:\s+in|Delay"?:\s*"?)\s*([\d.]+)\s*s', re.I)
 
 
 def write_wav(pcm: bytes, dest: Path) -> Path:
@@ -44,20 +53,36 @@ def _silence(seconds: float) -> bytes:
     return b"\x00" * (frames * TTS_SAMPLE_WIDTH * TTS_CHANNELS)
 
 
-def _speak(text: str, voice: str, hint: str) -> bytes:
-    """Gọi TTS, thử lại khi bị 429 — hạn mức miễn phí rất dễ chạm."""
+def _speak(
+    text: str,
+    voice: str,
+    hint: str,
+    on_wait: Callable[[float], None] | None = None,
+) -> bytes:
+    """Gọi TTS, chờ và thử lại khi chạm hạn mức."""
     last: Exception | None = None
-    for attempt in range(MAX_RETRIES):
+    for _attempt in range(MAX_RETRIES):
         try:
             return gemini.synthesize(text, voice=voice, style_hint=hint)
         except gemini.GeminiError as exc:
             last = exc
-            if "429" not in str(exc) and "hạn mức" not in str(exc):
+            message = str(exc)
+            if "429" not in message and "hạn mức" not in message:
                 raise
-            wait = RETRY_WAIT * (attempt + 1)
-            log.warning("TTS bị giới hạn tốc độ, chờ %.0fs rồi thử lại…", wait)
+
+            found = RETRY_HINT.search(message)
+            wait = min(float(found.group(1)) + 2.0, 180.0) if found else RETRY_WAIT
+
+            log.warning("TTS chạm hạn mức, chờ %.0fs rồi đọc tiếp…", wait)
+            if on_wait:
+                on_wait(wait)
             time.sleep(wait)
-    raise last or gemini.GeminiError("Đọc thoại thất bại.")
+
+    raise last or gemini.GeminiError(
+        "Đọc thoại thất bại sau nhiều lần thử. Hạn mức miễn phí của Gemini TTS là "
+        "3 lượt/phút — kịch bản dài nên bật thanh toán trong Google AI Studio, "
+        "hoặc rút ngắn nội dung lại."
+    )
 
 
 def synthesize_segments(
@@ -94,7 +119,17 @@ def synthesize_segments(
         if seg.get("emotion"):
             seg_hint = f"{hint}, cảm xúc {seg['emotion']}"
 
-        pcm = _speak(seg["text"], voice, seg_hint)
+        # Báo rõ đang chờ hạn mức, nếu không thanh tiến độ đứng im cả phút và
+        # người dùng tưởng phần mềm treo rồi tắt đi giữa chừng.
+        def _waiting(seconds: float, i=i) -> None:
+            if on_progress:
+                on_progress(
+                    i / len(segments),
+                    f"Chạm hạn mức Gemini, chờ {seconds:.0f}s rồi đọc tiếp "
+                    f"(câu {i + 1}/{len(segments)})",
+                )
+
+        pcm = _speak(seg["text"], voice, seg_hint, on_wait=_waiting)
         duration = pcm_duration(pcm)
 
         wav_path = voice_dir / f"seg_{i:03d}.wav"

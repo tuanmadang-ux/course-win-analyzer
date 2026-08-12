@@ -5,11 +5,12 @@
 <link rel="stylesheet" href="assets/theme.css" />
 <script src="node_modules/gsap/dist/gsap.min.js"></script>
 <style>
-  /* Thẻ câu móc nằm CAO hơn các thẻ khác và không có nền panel — nó dùng ở
-     2 giây đầu video, lúc chưa cần nhìn rõ mặt, nên chữ to tràn khung. */
+  /* Thẻ câu móc khác các thẻ kia ở chỗ không có nền panel, chữ to tràn khung.
+     Nhưng vẫn phải neo cùng vùng an toàn: khuôn mặt người nói nằm quanh
+     y=400..900, đặt chữ ở đó là đè thẳng lên mặt. */
   .hook {
     position: absolute;
-    left: 80px; right: 80px; top: 620px;
+    left: 80px; right: 80px; bottom: 470px;
   }
   .big {
     font-size: 104px; font-weight: 900; line-height: 1.08;

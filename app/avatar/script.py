@@ -25,8 +25,12 @@ STYLE_HINTS = {
     "tam_su": "chậm rãi, tâm sự, có cảm xúc",
 }
 
-# Nói tiếng Việt tốc độ vừa phải rơi vào khoảng 4.5 âm tiết/giây.
-SYLLABLES_PER_SECOND = 4.5
+# Đo thật trên Gemini TTS giọng Việt, chỉ dẫn "tốc độ vừa phải": 3.3–3.9 từ/giây
+# tuỳ độ dài câu (câu ngắn chậm hơn vì có nhịp nghỉ hai đầu). Lấy 3.6.
+#
+# Đừng đổi con số này theo cảm tính — đo lại bằng cách gọi `gemini.synthesize`
+# vài câu rồi chia số từ cho `voice.pcm_duration`.
+SYLLABLES_PER_SECOND = 3.6
 
 
 def style_hint(settings: AvatarSettings) -> str:

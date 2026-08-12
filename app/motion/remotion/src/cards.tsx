@@ -226,7 +226,9 @@ export const Hook: React.FC<{ text?: string; kicker?: string }> = ({ text = "", 
     <AbsoluteFill style={{ fontFamily: font, backgroundColor: "transparent" }}>
       <div
         style={{
-          position: "absolute", left: 80, right: 80, top: 620,
+          // Neo cùng vùng an toàn với các thẻ khác: mặt người nói nằm quanh
+          // y=400..900, đặt chữ ở đó là đè thẳng lên mặt.
+          position: "absolute", left: 80, right: 80, bottom: 470,
           opacity: s,
           transform: `translateY(${interpolate(s, [0, 1], [40, 0])}px)`,
           textShadow: "0 4px 18px rgba(0,0,0,0.85), 0 0 3px rgba(0,0,0,0.9)",

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  .wrap { display: flex; gap: 34px; align-items: stretch; }
+  .bar {
+    width: 12px; border-radius: 99px; flex-shrink: 0;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  }
+  .text { font-size: 60px; font-weight: 700; line-height: 1.25; color: var(--ink); }
+  .who  { font-size: 36px; color: var(--ink-dim); margin-top: 22px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="quote"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "text": {"type": "string", "default": "Câu trích dẫn"},
+       "who":  {"type": "string", "default": ""}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="zone">
+    <div class="panel">
+      <div class="wrap">
+        <div class="bar" id="bar"></div>
+        <div>
+          <div class="text" id="text">Câu trích dẫn</div>
+          <div class="who" id="who"></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    const value = (text ?? "").toString().trim();
+    if (value) el.textContent = value; else el.remove();
+  };
+  set("text", v.text ?? "Câu trích dẫn");
+  set("who", v.who ?? "");
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card", { opacity: 0, x: -60, duration: 0.55, ease: "power3.out" }, 0)
+    .from("#bar",  { scaleY: 0, transformOrigin: "top", duration: 0.5, ease: "power2.out" }, 0.15)
+    .from("#text", { opacity: 0, duration: 0.45 }, 0.25);
+  window.__timelines["quote"] = tl;
+</script>
+</body>
+</html>

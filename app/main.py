@@ -18,6 +18,8 @@ from app.avatar import lipsync as lipsync_mod
 from app.avatar import music as music_mod
 from app.avatar import script as script_mod
 from app.avatar import service as avatar_service
+from app.motion import engine as motion_engine
+from app.motion import service as motion_service_mod
 from app.config import (
     ANALYSIS_MODEL,
     GEMINI_TEXT_MODEL,
@@ -95,6 +97,9 @@ def avatar_options() -> dict:
         "voices": gemini_mod.VOICES,
         "engines": lipsync_mod.describe(),
         "engine_active": _safe_engine(),
+        "motion_engines": motion_engine.describe(),
+        "motion_active": motion_engine.resolve_safe(),
+        "motion_cards": motion_service_mod.available_types(),
         "music": music_mod.library(),
         "styles": [
             {"id": key, "label": label}

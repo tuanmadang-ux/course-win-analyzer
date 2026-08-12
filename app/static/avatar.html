@@ -92,6 +92,26 @@ Có 2 người thì đánh dấu bằng A: và B: ở đầu dòng."></textarea>
 
     <p class="engine-note muted" id="engine-note"></p>
 
+    <div class="motion-box">
+      <label class="inline-check" style="font-size:14px;color:var(--text)">
+        <input type="checkbox" id="motion" checked>
+        <b>Chèn thẻ đồ hoạ B-roll</b>
+      </label>
+      <p class="muted small" style="margin:6px 0 12px">
+        AI đọc lời thoại rồi dựng thẻ mang <b>đúng nội dung đang được nói</b> —
+        con số, danh sách, câu chốt — thay vì clip stock chung chung.
+      </p>
+      <div class="tune" id="motion-tune">
+        <label class="field">Engine dựng thẻ
+          <select id="motion-engine"></select>
+        </label>
+        <label>Tối đa số thẻ <output id="motion-max-out">4</output>
+          <input type="range" id="motion-max" min="1" max="8" step="1" value="4">
+        </label>
+      </div>
+      <p class="engine-note muted" id="motion-note"></p>
+    </div>
+
     <details class="advanced">
       <summary>Tinh chỉnh phụ đề &amp; nhạc nền</summary>
       <div class="tune">

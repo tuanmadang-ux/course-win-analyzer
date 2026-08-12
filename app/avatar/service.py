@@ -14,18 +14,25 @@ from pathlib import Path
 from app.avatar import align, compose, gemini, lipsync, music, portrait, script, voice
 from app.config import AvatarSettings, RenderSettings
 from app.jobs import Job, manager
+from app.motion import service as motion_service
 from app.pipeline.ffmpeg_utils import probe
 
 log = logging.getLogger(__name__)
 
 # Trọng số các bước để thanh tiến độ chạy đều tay
 STAGES = {
-    "script": (0.02, 0.10),
-    "voice": (0.10, 0.35),
-    "portrait": (0.35, 0.42),
-    "lipsync": (0.42, 0.86),
-    "compose": (0.86, 1.00),
+    "script": (0.02, 0.08),
+    "voice": (0.08, 0.30),
+    "portrait": (0.30, 0.36),
+    "lipsync": (0.36, 0.74),
+    "motion": (0.74, 0.90),
+    "compose": (0.90, 1.00),
 }
+
+
+def _gemini_json(prompt: str, system: str) -> dict:
+    """Cầu nối để `app.motion` hỏi Gemini mà không cần biết tới module gemini."""
+    return gemini.generate_json(prompt, system=system, temperature=0.4)
 
 
 def _span(stage: str, fraction: float) -> float:
@@ -116,11 +123,22 @@ def generate(
     except Exception:  # noqa: BLE001
         pass
 
-    # --- 5. Phụ đề ---------------------------------------------------------
+    # --- 5. Thẻ đồ hoạ -----------------------------------------------------
+    # Chèn trước phụ đề: thẻ nằm ở giữa khung, phụ đề ở đáy, nướng phụ đề sau
+    # cùng thì chữ luôn nằm trên và không bao giờ bị thẻ che.
+    current = stitched
+    motion_result = motion_service.decorate(
+        current, segments, duration, work, settings, render,
+        ask_json=_gemini_json if gemini.available() else None,
+        on_progress=lambda f, m: manager.progress(
+            job.id, "Thẻ đồ hoạ", _span("motion", f), m
+        ),
+    )
+    current = motion_result["video"]
+
+    # --- 6. Phụ đề ---------------------------------------------------------
     lines = align.build_lines(segments, max_chars=settings.subtitle_max_chars)
     srt_path = align.write_srt(lines, out_dir / "phu_de.srt")
-
-    current = stitched
     if settings.subtitles and lines:
         manager.progress(job.id, "Ghép video", _span("compose", 0.45), "Đang nướng phụ đề…")
         ass_path = align.write_ass(
@@ -131,7 +149,7 @@ def generate(
         )
         current = compose.burn_subtitles(current, ass_path, work / "with_subs.mp4", render)
 
-    # --- 6. Nhạc nền -------------------------------------------------------
+    # --- 7. Nhạc nền -------------------------------------------------------
     music_used = ""
     track = music.resolve(settings, plan.get("music_mood", ""))
     if track is not None:
@@ -158,6 +176,8 @@ def generate(
         "duration": round(duration, 2),
         "music": music_used,
         "music_mood": plan.get("music_mood", ""),
+        "motion_engine": motion_result["engine"],
+        "motion_cards": motion_result["cards"],
         "segments": segments,
         "subtitle_lines": lines,
         "portraits": {str(k): v["path"] for k, v in frames.items()},
@@ -172,6 +192,8 @@ def generate(
         "duration": project["duration"],
         "engine": engine,
         "music": music_used,
+        "motion_engine": motion_result["engine"],
+        "motion_cards": len(motion_result["cards"]),
         "video": final.name,
         "srt": srt_path.name,
         "segments": len(segments),

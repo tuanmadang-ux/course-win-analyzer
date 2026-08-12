@@ -45,6 +45,16 @@ LIPSYNC_HOME = Path(os.getenv("LIPSYNC_HOME") or ROOT / "vendor")
 LIPSYNC_PYTHON = os.getenv("LIPSYNC_PYTHON", "").strip()  # để trống -> dùng python hiện tại
 LIPSYNC_TIMEOUT = int(os.getenv("LIPSYNC_TIMEOUT", "1800"))
 
+# --- Thẻ đồ hoạ B-roll (motion graphics) ------------------------------------
+# auto | hyperframes | remotion | off
+MOTION_ENGINE = os.getenv("MOTION_ENGINE", "auto").strip().lower()
+MOTION_HOME = Path(os.getenv("MOTION_HOME") or Path(__file__).resolve().parent / "motion")
+MOTION_TIMEOUT = int(os.getenv("MOTION_TIMEOUT", "900"))
+NPX_BIN = os.getenv("NPX_BIN", "npx").strip()
+# Remotion tự tải Chromium riêng. Máy có tường lửa/proxy chặn thì trỏ tay vào
+# một bản chrome-headless-shell có sẵn.
+REMOTION_BROWSER = os.getenv("REMOTION_BROWSER", "").strip()
+
 # --- Whisper ----------------------------------------------------------------
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "large-v3").strip()
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto").strip()
@@ -193,6 +203,11 @@ class AvatarSettings:
     subtitles: bool = True
     subtitle_size: int = 15            # % chiều cao khung -> cỡ chữ
     subtitle_max_chars: int = 28       # video dọc nên để dòng ngắn
+
+    # Thẻ đồ hoạ B-roll
+    motion: bool = True
+    motion_engine: str = "auto"        # auto | hyperframes | remotion | off
+    motion_max_cards: int = 4
 
     # Nhạc nền
     music: bool = True

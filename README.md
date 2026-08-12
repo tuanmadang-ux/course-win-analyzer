@@ -26,6 +26,7 @@ Quy trình bên trong:
    ↓  Gemini TTS đọc từng câu → biết CHÍNH XÁC câu nào dài bao nhiêu giây
    ↓  Dò mặt, dựng khung 9:16 (mặt ở 1/3 trên, nền mờ lấp phần thiếu)
    ↓  Engine nhép môi ghép ảnh + tiếng thành video người đang nói
+   ↓  AI chọn chỗ đáng chèn thẻ đồ hoạ, dựng thẻ, chồng lên hình
    ↓  Phụ đề canh theo đúng độ dài từng câu, nướng lên hình
    ↓  Nhạc nền tự hạ xuống mỗi khi có tiếng nói (ducking)
 video_doc_9x16.mp4  +  phu_de.srt
@@ -37,6 +38,7 @@ video_doc_9x16.mp4  +  phu_de.srt
 |---|---|---|
 | `GEMINI_API_KEY` | **Có** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — miễn phí |
 | Engine nhép môi | Không, nhưng nên có | `bash setup_lipsync.sh` |
+| Engine dựng thẻ đồ hoạ | Không | `bash setup_motion.sh` (cần Node.js 22+) |
 | File nhạc nền | Không | Thả `.mp3` vào `data/music/` |
 | GPU NVIDIA | Không, nhưng nhanh hơn nhiều | — |
 
@@ -94,6 +96,59 @@ giờ sai chữ** — khác hẳn bóc lời, vốn có thể nghe nhầm.
 Một chi tiết dễ sai: khoảng nghỉ ngăn cách hai người nói phải nằm **trong** cảnh
 trước. Bỏ sót thì tổng độ dài các cảnh ngắn hơn trục thời gian phụ đề, và phụ đề
 sẽ trôi dần một nhịp sau mỗi lần đổi người.
+
+## Thẻ đồ hoạ B-roll
+
+Đây là loại B-roll khác hẳn stock footage: thay vì đi tìm một clip chung chung về
+"tiền bạc", AI đọc lời thoại rồi dựng một thẻ mang **đúng nội dung đang được
+nói** — người nói "ba khoản làm bạn hết tiền" thì thẻ liệt kê đúng ba khoản đó.
+
+Sáu loại thẻ:
+
+| Loại | Dùng khi |
+|---|---|
+| `stat` | Câu đang nói có một con số cụ thể |
+| `steps` | Đang liệt kê 2–5 ý |
+| `quote` | Một câu chốt đáng nhớ |
+| `compare` | So sánh cách sai / cách đúng |
+| `hook` | Câu móc, chỉ dùng ở 1–2 câu đầu |
+| `lower_third` | Thanh giới thiệu tên và vai trò |
+
+Thẻ nằm ở khoảng giữa khung: dưới mặt người nói, trên phụ đề. Thẻ nhiều mục mọc
+**ngược lên** chứ không thò xuống, nên không bao giờ che phụ đề.
+
+AI chỉ chèn khi thẻ thật sự làm rõ thêm điều đang nói, tối đa 4 thẻ mỗi video và
+hai thẻ phải cách nhau ít nhất 6 giây. Không có key Gemini thì không chèn thẻ nào
+— thà không có còn hơn chèn thẻ vô nghĩa.
+
+### Chọn engine dựng thẻ
+
+```bash
+bash setup_motion.sh              # xem so sánh
+bash setup_motion.sh hyperframes  # rồi chọn
+```
+
+| | HyperFrames | Remotion |
+|---|---|---|
+| Của | HeyGen | Remotion |
+| Thẻ viết bằng | HTML thường | React |
+| **Giấy phép** | **Apache 2.0 — miễn phí mọi quy mô** | **⚠ miễn phí cho cá nhân và công ty ≤3 người; từ 4 người phải mua license ở remotion.pro** |
+| Tải về | ~150MB | ~400MB |
+| Hệ sinh thái | Mới, gọn | Lớn, trưởng thành |
+
+Cả hai cần **Node.js 22 trở lên** và cho ra thẻ nhìn giống hệt nhau (dùng chung
+một bảng màu và một vùng an toàn), nên đổi engine không làm đổi diện mạo video.
+
+**Khuyên dùng HyperFrames** vì giấy phép Apache 2.0 không có ngưỡng quy mô — bạn
+tuyển thêm người cũng không phát sinh nghĩa vụ mua license. `auto` luôn ưu tiên
+HyperFrames vì lý do này.
+
+> Remotion tự tải Chromium riêng ở lần render đầu. Máy bị proxy chặn thì đặt
+> `REMOTION_BROWSER=/duong/dan/chrome-headless-shell` trong `.env`.
+
+Muốn sửa kiểu dáng thẻ: sửa `app/motion/project/assets/theme.css` (HyperFrames)
+và `app/motion/remotion/src/theme.ts` (Remotion) — sửa cả hai thì hai engine mới
+tiếp tục giống nhau.
 
 ## Nhạc nền
 
@@ -242,6 +297,7 @@ Trình duyệt tự mở `http://127.0.0.1:8000`.
 run.py                     khởi động server + mở trình duyệt
 setup.sh                   cài đặt 1 lần
 setup_lipsync.sh           tải engine nhép môi về vendor/
+setup_motion.sh            cài engine dựng thẻ đồ hoạ (Node)
 app/
   config.py                đường dẫn, key, tham số mặc định cho cả hai công cụ
   main.py                  các route API của FastAPI
@@ -259,6 +315,15 @@ app/
     music.py               chọn nhạc theo tâm trạng + trộn có ducking
     compose.py             chuẩn hoá cảnh -> nối -> nướng phụ đề
     service.py             điều phối toàn bộ quy trình
+
+  motion/                  === THẺ ĐỒ HOẠ B-roll ===
+    cards.py               khai báo 6 loại thẻ + kiểm tra dữ liệu AI trả về
+    plan.py                AI chọn câu nào đáng chèn thẻ và thẻ ghi gì
+    engine.py              gọi HyperFrames / Remotion qua dòng lệnh
+    overlay.py             chồng thẻ lên video bằng một lượt ffmpeg
+    service.py             điều phối: lập kế hoạch -> dựng -> chồng
+    project/               template HyperFrames (HTML + GSAP)
+    remotion/              template Remotion (React)
 
   pipeline/                === CẮT video quay sẵn ===
     ffmpeg_utils.py        gọi ffmpeg/ffprobe, đọc metadata, tách audio
@@ -296,6 +361,11 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 | Engine đòi thư viện xung đột với `.venv` | Tạo venv riêng cho nó rồi trỏ `LIPSYNC_PYTHON` vào đó |
 | Ảnh báo "không thấy mặt" | Dùng ảnh chính diện, mặt chiếm ít nhất 1/5 khung, đủ sáng, không đeo kính râm |
 | Không có nhạc nền | Thư mục `data/music/` đang trống. Thả file `.mp3` vào |
+| Không thấy thẻ đồ hoạ nào | Cần **cả** `GEMINI_API_KEY` lẫn một engine đã cài. Thiếu một trong hai là không có thẻ |
+| AI không chèn thẻ nào | Bình thường nếu lời thoại không có số liệu / danh sách / câu chốt. Thẻ chỉ chèn khi thật sự làm rõ thêm ý |
+| Thẻ dựng lỗi giữa chừng | Thẻ đó bị bỏ, các thẻ còn lại vẫn giữ. Xem log terminal để biết lý do |
+| Remotion không tải được Chromium | Đặt `REMOTION_BROWSER` trong `.env` trỏ vào chrome-headless-shell có sẵn |
+| `setup_motion.sh` báo cần Node 22 | Cài Node.js mới ở https://nodejs.org |
 | Whisper báo lỗi CUDA / cuDNN | `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`, hoặc đặt `WHISPER_DEVICE=cpu` |
 | Render lỗi codec | Đặt `USE_NVENC=0` trong `.env` để dùng CPU (libx264) |
 | Tab B-roll trống | Cần **cả** `ANTHROPIC_API_KEY` lẫn key stock |
@@ -315,5 +385,12 @@ là hành vi có thể vi phạm pháp luật.
 **Engine nhép môi** (LatentSync, SadTalker, Wav2Lip) có giấy phép riêng của từng
 tác giả — đọc kỹ trước khi dùng thương mại. Đó cũng là lý do chúng không được
 đóng gói kèm mà phải tải riêng.
+
+**Engine dựng thẻ đồ hoạ**: HyperFrames dùng giấy phép Apache 2.0, miễn phí cho
+mọi quy mô kể cả thương mại. **Remotion thì khác**: chỉ miễn phí cho cá nhân và
+công ty có tối đa 3 người; công ty từ 4 người trở lên bắt buộc mua Company
+License tại [remotion.pro](https://remotion.pro). Điều khoản đầy đủ ở
+[LICENSE.md của Remotion](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+Nếu bạn có kế hoạch mở rộng đội ngũ, chọn HyperFrames là gọn nhất.
 
 **Nhạc nền**: bạn tự chịu trách nhiệm về bản quyền các file bỏ vào `data/music/`.

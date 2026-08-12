@@ -77,6 +77,14 @@ async function loadOptions() {
   $("voice-a").value = options.defaults.voice_a;
   $("voice-b").value = options.defaults.voice_b;
 
+  // Engine dựng thẻ đồ hoạ
+  $("motion-engine").innerHTML =
+    `<option value="auto">Tự chọn (đang là: ${options.motion_active})</option>` +
+    (options.motion_engines || [])
+      .map((e) => `<option value="${e.id}">${e.ready || e.id === "off" ? "" : "⚠ "}${e.label}</option>`)
+      .join("");
+  updateMotionNote();
+
   // Engine
   $("engine").innerHTML =
     `<option value="auto">Tự chọn (đang là: ${options.engine_active})</option>` +
@@ -97,6 +105,35 @@ function renderMusicList() {
   $("music-hint").textContent = tracks.length
     ? `${tracks.length} bài trong data/music/`
     : "Thư mục data/music/ đang trống — chưa có nhạc để chèn.";
+}
+
+function updateMotionNote() {
+  const value = $("motion-engine").value;
+  const found = (state.options.motion_engines || []).find((e) => e.id === value);
+  const note = $("motion-note");
+  const types = (state.options.motion_cards || [])
+    .map((c) => `<span class="card-chip">${c.id}</span>`)
+    .join("");
+
+  if (value === "off") {
+    note.innerHTML = "Không chèn thẻ nào.";
+    return;
+  }
+  if (found && !found.ready) {
+    note.innerHTML = `⚠ Chưa cài. Chạy: <code>${found.hint}</code>`;
+    return;
+  }
+
+  // Giấy phép Remotion là thứ người dùng phải biết TRƯỚC khi chọn, không phải
+  // sau khi đã dựng xong cả video.
+  const license =
+    value === "remotion" || (value === "auto" && state.options.motion_active === "remotion")
+      ? `<span class="license-warn">⚠ Remotion chỉ miễn phí cho cá nhân và công ty tối đa 3 người.
+         Công ty từ 4 người trở lên phải mua license ở remotion.pro.
+         Muốn tránh hẳn chuyện này thì dùng HyperFrames (Apache 2.0).</span>`
+      : "";
+
+  note.innerHTML = `Các loại thẻ AI được phép dùng: ${types}${license}`;
 }
 
 function updateEngineNote() {
@@ -181,6 +218,9 @@ function collectSettings() {
     engine: $("engine").value,
     background: $("background").value,
     background_color: $("background-color").value,
+    motion: $("motion").checked,
+    motion_engine: $("motion-engine").value,
+    motion_max_cards: Number($("motion-max").value),
     subtitles: $("subtitles").checked,
     subtitle_size: Number($("sub-size").value),
     subtitle_max_chars: Number($("sub-chars").value),
@@ -323,6 +363,7 @@ async function showResult(result) {
     ["Thời lượng", fmtTime(result.duration)],
     ["Số câu", result.segments],
     ["Nhép môi", result.engine],
+    ["Thẻ đồ hoạ", result.motion_cards || 0],
     ["Nhạc nền", result.music || "không"],
   ]
     .map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`)
@@ -391,12 +432,19 @@ function bind() {
   });
 
   $("engine").onchange = updateEngineNote;
+  $("motion-engine").onchange = updateMotionNote;
+  $("motion").onchange = () => {
+    const on = $("motion").checked;
+    $("motion-tune").style.opacity = on ? "" : ".45";
+    $("motion-tune").style.pointerEvents = on ? "" : "none";
+  };
   $("background").onchange = () => {
     $("bg-color-wrap").style.display = $("background").value === "solid" ? "" : "none";
   };
 
   [["sub-size", "sub-size-out"], ["sub-chars", "sub-chars-out"],
-   ["music-gain", "music-gain-out"], ["gap", "gap-out"]].forEach(([input, out]) => {
+   ["music-gain", "music-gain-out"], ["gap", "gap-out"],
+   ["motion-max", "motion-max-out"]].forEach(([input, out]) => {
     $(input).addEventListener("input", () => ($(out).textContent = $(input).value));
   });
 

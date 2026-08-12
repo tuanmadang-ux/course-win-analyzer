@@ -16,3 +16,7 @@ vendor/
 *.jpeg
 *.mp3
 *.ass
+node_modules/
+package-lock.json
+renders/
+.hyperframes/

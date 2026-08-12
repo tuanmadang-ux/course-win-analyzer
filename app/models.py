@@ -31,3 +31,20 @@ class RenderRequest(BaseModel):
 class BrollSearchRequest(BaseModel):
     query: str
     line: str = ""
+
+
+class AvatarGenerateRequest(BaseModel):
+    """Tạo video người nói từ ảnh đã tải lên + nội dung gõ vào."""
+
+    photo_ids: list[str] = Field(default_factory=list, max_length=2)
+    content: str
+    avatar: dict[str, Any] | None = None
+    render: dict[str, Any] | None = None
+
+
+class ScriptPreviewRequest(BaseModel):
+    """Xem trước kịch bản đã biên tập mà chưa tốn lượt gọi TTS/lip-sync."""
+
+    content: str
+    speakers: int = 1
+    avatar: dict[str, Any] | None = None

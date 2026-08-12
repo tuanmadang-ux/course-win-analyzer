@@ -10,11 +10,11 @@ faster-whisper==1.1.1
 # --- Hiểu ngữ cảnh + chọn B-roll (cần ANTHROPIC_API_KEY, có thể bỏ qua) ---
 anthropic>=0.69.0
 
-# --- Tải B-roll từ Pexels / Pixabay ---
+# --- Tải B-roll từ Pexels / Pixabay, và gọi Google Gemini API ---
 httpx==0.28.1
 
-# --- Bám mặt người nói để cắt dọc 9:16 ---
-# Bám mặt người nói dùng Haar cascade — OpenCV 5.x đã bỏ API này, phải giữ ở 4.x
+# --- Dò mặt: cắt dọc 9:16 và canh khung chân dung cho video tạo mới ---
+# Dò mặt dùng Haar cascade — OpenCV 5.x đã bỏ API này, phải giữ ở 4.x
 opencv-python-headless>=4.10,<5
 numpy>=1.26,<3
 

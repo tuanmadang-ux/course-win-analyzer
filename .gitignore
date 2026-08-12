@@ -10,3 +10,9 @@ data/
 *.wav
 *.srt
 .DS_Store
+vendor/
+*.png
+*.jpg
+*.jpeg
+*.mp3
+*.ass

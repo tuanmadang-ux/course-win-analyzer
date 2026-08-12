@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar đối thủ</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header>
+  <h1>📡 Radar đối thủ</h1>
+  <div id="capabilities" class="caps"></div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="collect">1. Thu thập</button>
+  <button class="tab" data-tab="posts">2. Bài đã thu</button>
+  <button class="tab" data-tab="insights">3. Insight</button>
+  <button class="tab" data-tab="drafts">4. Duyệt &amp; đăng</button>
+  <button class="tab" data-tab="report">5. Hiệu suất</button>
+</nav>
+
+<main>
+
+<!-- ==================== 1. THU THẬP ==================== -->
+<section id="panel-collect" class="panel">
+
+  <div class="card">
+    <h2>Nguồn đang theo dõi</h2>
+    <div id="source-list" class="list"></div>
+    <div class="row wrap gap">
+      <input type="text" id="src-name" placeholder="Tên đối thủ (vd: Trung tâm ABC)">
+      <input type="text" id="src-ref" placeholder="Link fanpage (tuỳ chọn)">
+      <button class="btn" id="btn-add-source">+ Thêm nguồn</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Lấy dữ liệu về</h2>
+    <div class="subtabs" id="subtabs">
+      <button class="subtab active" data-mode="paste">✍️ Dán tay</button>
+      <button class="subtab" data-mode="file">📄 Nhập file</button>
+      <button class="subtab" data-mode="apify">⚙️ Tự động (Apify)</button>
+    </div>
+
+    <label class="field">
+      <span>Nguồn</span>
+      <select id="collect-source"></select>
+    </label>
+
+    <!-- Dán tay -->
+    <div id="mode-paste" class="mode">
+      <p class="muted small">
+        Mở bài của đối thủ, bấm hết “Xem thêm bình luận”, quét chọn rồi dán vào đây.
+        Không cần key gì cả. Tên người bình luận sẽ tự động bị ẩn danh khi lưu.
+      </p>
+      <label class="field">
+        <span>Link bài (tuỳ chọn)</span>
+        <input type="text" id="paste-url" placeholder="https://facebook.com/...">
+      </label>
+      <label class="field">
+        <span>Nội dung bài gốc</span>
+        <textarea id="paste-post" rows="6" placeholder="Dán nguyên văn bài viết của đối thủ…"></textarea>
+      </label>
+      <label class="field">
+        <span>Phần bình luận</span>
+        <textarea id="paste-comments" rows="10"
+          placeholder="Dán cả khối bình luận vào đây — hệ thống tự tách từng cái và bỏ dòng rác."></textarea>
+      </label>
+      <button class="btn primary" id="btn-paste">Thu thập &amp; đào insight</button>
+    </div>
+
+    <!-- Nhập file -->
+    <div id="mode-file" class="mode hidden">
+      <p class="muted small">
+        Đã có dữ liệu xuất từ công cụ khác (Apify chạy tay, tool social listening…)?
+        Nhận .json, .jsonl, .csv — không cần đúng tên cột, hệ thống tự đoán.
+      </p>
+      <input type="file" id="file-input" accept=".json,.jsonl,.csv,.tsv">
+      <div id="file-info" class="muted small"></div>
+      <button class="btn primary" id="btn-file">Nhập &amp; đào insight</button>
+    </div>
+
+    <!-- Apify -->
+    <div id="mode-apify" class="mode hidden">
+      <p class="muted small">
+        Gọi actor Apify bằng token của chính bạn. Hạn mức và việc tuân thủ điều khoản
+        nền tảng thuộc tài khoản Apify của bạn — phần mềm này không tự đăng nhập Facebook.
+      </p>
+      <div id="apify-state" class="notice"></div>
+      <label class="field">
+        <span>Link fanpage cần quét</span>
+        <input type="text" id="apify-target" placeholder="https://facebook.com/tenfanpage">
+      </label>
+      <button class="btn primary" id="btn-apify">Quét &amp; đào insight</button>
+    </div>
+
+    <details class="tune">
+      <summary>Tinh chỉnh bộ lọc</summary>
+      <div class="grid">
+        <label class="field"><span>Bài phải có tối thiểu … bình luận</span>
+          <input type="number" id="opt-min-comments" value="10" min="0"></label>
+        <label class="field"><span>Tối đa … bài mỗi lần quét</span>
+          <input type="number" id="opt-max-posts" value="30" min="1"></label>
+        <label class="field"><span>Bỏ bài cũ hơn … ngày</span>
+          <input type="number" id="opt-max-age" value="45" min="0"></label>
+        <label class="field"><span>Bình luận ngắn hơn … chữ thì bỏ</span>
+          <input type="number" id="opt-min-words" value="4" min="1"></label>
+      </div>
+    </details>
+
+    <div id="collect-progress" class="progress hidden">
+      <div class="bar"><div class="bar-fill" id="collect-bar"></div></div>
+      <p class="muted small" id="collect-label"></p>
+    </div>
+    <div id="collect-result"></div>
+  </div>
+</section>
+
+<!-- ==================== 2. BÀI ĐÃ THU ==================== -->
+<section id="panel-posts" class="panel hidden">
+  <div class="card">
+    <div class="row between">
+      <h2>Bài đã thu về</h2>
+      <div class="row gap">
+        <select id="posts-filter"><option value="">Tất cả nguồn</option></select>
+        <button class="btn" id="btn-remine">Đào lại bài đã chọn</button>
+      </div>
+    </div>
+    <div id="post-list" class="list"></div>
+  </div>
+</section>
+
+<!-- ==================== 3. INSIGHT ==================== -->
+<section id="panel-insights" class="panel hidden">
+  <div class="card">
+    <div class="row between">
+      <h2>Insight từ phần bình luận</h2>
+      <button class="btn" id="btn-reload-insights">Tải lại</button>
+    </div>
+    <p class="muted small">
+      Mỗi thẻ là một nhóm bình luận cùng ý. Cột <b>Bài gốc còn thiếu</b> chính là chỗ
+      bạn chen vào được. Chọn vài cái rồi bấm viết bài.
+    </p>
+    <div id="insight-list" class="list"></div>
+  </div>
+
+  <div class="card">
+    <h2>Viết bài từ insight đã chọn</h2>
+    <div class="row wrap gap" id="format-picker"></div>
+    <label class="field">
+      <span>Yêu cầu thêm cho AI (tuỳ chọn)</span>
+      <input type="text" id="write-brief" placeholder="vd: lồng khoá học tháng 9, giọng gần gũi hơn">
+    </label>
+    <button class="btn primary" id="btn-write" disabled>Viết bài (0 insight)</button>
+    <div id="write-progress" class="progress hidden">
+      <div class="bar"><div class="bar-fill" id="write-bar"></div></div>
+      <p class="muted small" id="write-label"></p>
+    </div>
+    <div id="write-result"></div>
+  </div>
+</section>
+
+<!-- ==================== 4. DUYỆT & ĐĂNG ==================== -->
+<section id="panel-drafts" class="panel hidden">
+  <div class="card">
+    <div class="row between">
+      <h2>Hàng đợi duyệt</h2>
+      <div class="row gap">
+        <select id="draft-filter">
+          <option value="">Tất cả</option>
+          <option value="draft">Chờ duyệt</option>
+          <option value="approved">Đã duyệt</option>
+          <option value="scheduled">Đã lên lịch</option>
+          <option value="published">Đã đăng</option>
+          <option value="rejected">Đã bỏ</option>
+        </select>
+        <button class="btn" id="btn-reload-drafts">Tải lại</button>
+      </div>
+    </div>
+    <div id="golden-info" class="notice"></div>
+    <div id="draft-list" class="list"></div>
+  </div>
+</section>
+
+<!-- ==================== 5. HIỆU SUẤT ==================== -->
+<section id="panel-report" class="panel hidden">
+  <div class="card">
+    <div class="row between">
+      <h2>Công thức nào đang ăn</h2>
+      <button class="btn" id="btn-refresh-metrics">Kéo chỉ số mới</button>
+    </div>
+    <div id="report-body"></div>
+  </div>
+</section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

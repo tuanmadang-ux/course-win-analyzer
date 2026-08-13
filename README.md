@@ -354,7 +354,8 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 |---|---|
 | `CHƯA CÀI FFMPEG` | Cài ffmpeg rồi mở terminal mới |
 | Tạo video báo thiếu `GEMINI_API_KEY` | Điền key vào `.env` rồi khởi động lại `python run.py` |
-| Gemini báo 429 | Chạm hạn mức miễn phí. Phần mềm tự chờ và thử lại 3 lần; vẫn lỗi thì đợi vài phút hoặc bật thanh toán trong AI Studio |
+| Gemini báo 429 khi đọc lời thoại | Bậc miễn phí cho **3 lượt TTS/phút**, mà mỗi câu là một lượt. Phần mềm tự đọc thời gian chờ trong thông báo lỗi rồi chờ đúng, nên video dài chỉ chạy chậm chứ không hỏng. Muốn nhanh thì bật thanh toán |
+| Veo báo 429 ngay lập tức | Veo **không có hạn mức nào ở bậc miễn phí** — chờ rồi thử lại vô ích. Phải bật billing cho đúng project chứa key (có credit trong tài khoản Cloud vẫn chưa đủ). Dùng engine local thay thế |
 | Nhép môi ra ảnh tĩnh | Chưa cài engine nào. Chạy `bash setup_lipsync.sh latentsync` |
 | Engine báo lỗi giữa chừng | Phần mềm tự lùi cảnh đó về ảnh tĩnh thay vì bỏ cả video. Xem log terminal để biết lý do |
 | Nhép môi chạy quá lâu rồi dừng | Tăng `LIPSYNC_TIMEOUT` trong `.env` (mặc định 1800 giây) |

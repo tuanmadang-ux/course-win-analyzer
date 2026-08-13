@@ -71,7 +71,7 @@ def _require_key() -> str:
     return GEMINI_API_KEY
 
 
-def _friendly(status: int, body: str) -> str:
+def _friendly(status: int, body: str, model: str = "") -> str:
     """Đổi lỗi HTTP của Google thành câu tiếng Việt nói rõ phải làm gì."""
     detail = body[:400]
     try:
@@ -81,11 +81,27 @@ def _friendly(status: int, body: str) -> str:
 
     if status in (401, 403):
         return f"Key Gemini bị từ chối ({status}). Kiểm tra lại GEMINI_API_KEY.\n{detail}"
+
     if status == 429:
+        # Veo không hề có hạn mức ở bậc miễn phí, nên 429 ở đây KHÔNG phải "dùng
+        # nhiều quá, chờ tí". Khuyên người dùng chờ là khuyên sai — chờ bao lâu
+        # cũng vẫn 429. Phải nói thẳng là cần bật thanh toán.
+        if "veo" in model.lower():
+            return (
+                "Veo không dùng được ở bậc miễn phí của Gemini API (lỗi 429).\n"
+                "Chờ rồi thử lại sẽ KHÔNG có tác dụng — phải bật thanh toán cho đúng "
+                "project chứa key này:\n"
+                "  1. https://aistudio.google.com/apikey → xem key này thuộc project nào\n"
+                "  2. Bật billing cho project đó ở https://console.cloud.google.com/billing\n"
+                "Có credit trong tài khoản Cloud vẫn chưa đủ, phải gắn billing vào project.\n"
+                "Trong lúc chờ, dùng engine nhép môi chạy local (setup_lipsync.sh).\n"
+                f"{detail}"
+            )
         return (
             "Gemini báo vượt hạn mức (429). Chờ một lát rồi thử lại, hoặc bật thanh toán "
             f"cho project trong Google AI Studio.\n{detail}"
         )
+
     if status == 404:
         return (
             f"Model không tồn tại hoặc tài khoản chưa được mở quyền dùng.\n{detail}"
@@ -107,7 +123,7 @@ def _post(path: str, payload: dict, timeout: float = 180.0) -> dict:
         raise GeminiError(f"Không gọi được Gemini API: {exc}") from exc
 
     if resp.status_code >= 400:
-        raise GeminiError(_friendly(resp.status_code, resp.text))
+        raise GeminiError(_friendly(resp.status_code, resp.text, model=path))
     return resp.json()
 
 
@@ -120,7 +136,7 @@ def _get(path: str, timeout: float = 60.0) -> dict:
         raise GeminiError(f"Không gọi được Gemini API: {exc}") from exc
 
     if resp.status_code >= 400:
-        raise GeminiError(_friendly(resp.status_code, resp.text))
+        raise GeminiError(_friendly(resp.status_code, resp.text, model=path))
     return resp.json()
 
 
@@ -343,5 +359,5 @@ def _download_veo_result(op: dict) -> bytes:
         raise GeminiError(f"Tải video từ Veo thất bại: {exc}") from exc
 
     if resp.status_code >= 400:
-        raise GeminiError(_friendly(resp.status_code, resp.text[:300]))
+        raise GeminiError(_friendly(resp.status_code, resp.text[:300], model=GEMINI_VEO_MODEL))
     return resp.content

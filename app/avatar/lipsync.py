@@ -156,7 +156,23 @@ def describe() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def _python() -> str:
+def engine_python(spec: EngineSpec) -> str:
+    """Python dùng để chạy engine này.
+
+    Ba repo lip-sync đều ghim phiên bản đụng thẳng vào thư viện của phần mềm —
+    LatentSync đòi `opencv-python==4.9.0.80` trong khi ta cần
+    `opencv-python-headless>=4.10` (hai gói khác nhau cùng cấp module `cv2`),
+    SadTalker đòi `numpy==1.23.4`, Wav2Lip đòi `numpy==1.17.1` và `torch==1.1.0`.
+    Cài chung một chỗ là hỏng phần dò mặt.
+
+    Nên `setup_lipsync.sh` dựng cho mỗi engine một venv riêng. Ở đây ưu tiên venv
+    đó; không có thì mới dùng LIPSYNC_PYTHON, rồi mới tới python đang chạy.
+    """
+    root = engine_dir(spec)
+    for candidate in (root / ".venv" / "bin" / "python",
+                      root / ".venv" / "Scripts" / "python.exe"):
+        if candidate.is_file():
+            return str(candidate)
     return LIPSYNC_PYTHON or sys.executable
 
 
@@ -164,7 +180,7 @@ def _argv(spec: EngineSpec, face: Path, audio: Path, out: Path, work: Path) -> l
     root = engine_dir(spec)
     if spec.name == "latentsync":
         return [
-            _python(), str(root / "scripts" / "inference.py"),
+            engine_python(spec), str(root / "scripts" / "inference.py"),
             "--unet_config_path", str(root / "configs" / "unet" / "stage2.yaml"),
             "--inference_ckpt_path", str(root / "checkpoints" / "latentsync_unet.pt"),
             "--video_path", str(face),
@@ -173,7 +189,7 @@ def _argv(spec: EngineSpec, face: Path, audio: Path, out: Path, work: Path) -> l
         ]
     if spec.name == "sadtalker":
         return [
-            _python(), str(root / "inference.py"),
+            engine_python(spec), str(root / "inference.py"),
             "--driven_audio", str(audio),
             "--source_image", str(face),
             "--result_dir", str(work),
@@ -183,7 +199,7 @@ def _argv(spec: EngineSpec, face: Path, audio: Path, out: Path, work: Path) -> l
         ]
     if spec.name == "wav2lip":
         return [
-            _python(), str(root / "inference.py"),
+            engine_python(spec), str(root / "inference.py"),
             "--checkpoint_path", str(root / "checkpoints" / "wav2lip_gan.pth"),
             "--face", str(face),
             "--audio", str(audio),

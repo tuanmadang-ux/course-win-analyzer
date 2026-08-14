@@ -37,8 +37,29 @@ EOF
 fi
 
 command -v git >/dev/null || die "Chưa cài git."
-PY="${LIPSYNC_PYTHON:-python3}"
-command -v "$PY" >/dev/null || die "Không tìm thấy $PY."
+BASE_PY="${LIPSYNC_PYTHON:-python3}"
+command -v "$BASE_PY" >/dev/null || die "Không tìm thấy $BASE_PY."
+
+# Mỗi engine một môi trường Python RIÊNG, không đụng vào .venv của phần mềm.
+#
+# Bắt buộc phải vậy: cả ba repo đều ghim phiên bản đụng thẳng vào thư viện ta
+# đang dùng — LatentSync đòi opencv-python==4.9.0.80 (ta cần
+# opencv-python-headless>=4.10, hai gói khác nhau cùng cấp module cv2),
+# SadTalker đòi numpy==1.23.4, Wav2Lip đòi numpy==1.17.1 và torch==1.1.0.
+# Cài chung là hỏng phần dò mặt của phần mềm.
+#
+# Phần mềm tự tìm venv này khi chạy (xem engine_python trong app/avatar/lipsync.py),
+# nên không phải khai báo gì thêm trong .env.
+make_venv() {
+  local dir="$1"
+  if [[ ! -x "$dir/.venv/bin/python" ]]; then
+    say "Tạo môi trường Python riêng cho engine"
+    "$BASE_PY" -m venv "$dir/.venv" || die "Không tạo được venv ở $dir/.venv"
+  fi
+  PY="$dir/.venv/bin/python"
+  "$PY" -m pip install -q --upgrade pip
+  echo "  môi trường riêng: $dir/.venv"
+}
 
 mkdir -p "$VENDOR"
 
@@ -72,7 +93,8 @@ case "$ENGINE" in
     say "Clone LatentSync"
     clone https://github.com/bytedance/LatentSync.git "$DIR"
 
-    say "Cài thư viện Python"
+    make_venv "$DIR"
+    say "Cài thư viện Python (vào môi trường riêng)"
     "$PY" -m pip install -q -r "$DIR/requirements.txt" || \
       warn "Cài thư viện có lỗi — xem $DIR/requirements.txt và cài tay."
 
@@ -88,7 +110,8 @@ case "$ENGINE" in
     say "Clone SadTalker"
     clone https://github.com/OpenTalker/SadTalker.git "$DIR"
 
-    say "Cài thư viện Python"
+    make_venv "$DIR"
+    say "Cài thư viện Python (vào môi trường riêng)"
     "$PY" -m pip install -q -r "$DIR/requirements.txt" || \
       warn "Cài thư viện có lỗi — xem $DIR/requirements.txt và cài tay."
 
@@ -110,8 +133,9 @@ case "$ENGINE" in
     say "Clone Wav2Lip"
     clone https://github.com/Rudrabha/Wav2Lip.git "$DIR"
 
-    say "Cài thư viện Python"
-    "$PY" -m pip install -q librosa numba opencv-python-headless || \
+    make_venv "$DIR"
+    say "Cài thư viện Python (vào môi trường riêng)"
+    "$PY" -m pip install -q -r "$DIR/requirements.txt" || \
       warn "Cài thư viện có lỗi — xem $DIR/requirements.txt và cài tay."
 
     say "Tải trọng số (~500MB)"
@@ -147,6 +171,7 @@ if [[ -f "$MARKER" ]]; then
   echo "  ✓ $ENGINE đã sẵn sàng"
   echo
   echo "Xong. Mở lại phần mềm và chọn '$ENGINE' ở mục Cách nhép môi."
+  echo "Phần mềm tự tìm môi trường riêng ở $(dirname "$MARKER")/.venv — không cần sửa .env."
   echo "Muốn dùng mặc định luôn: đặt LIPSYNC_ENGINE=$ENGINE trong file .env"
 else
   die "Thiếu file: $MARKER — xem lại các bước báo lỗi ở trên."

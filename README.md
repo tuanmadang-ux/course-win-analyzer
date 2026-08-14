@@ -359,7 +359,7 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 | Nhép môi ra ảnh tĩnh | Chưa cài engine nào. Chạy `bash setup_lipsync.sh latentsync` |
 | Engine báo lỗi giữa chừng | Phần mềm tự lùi cảnh đó về ảnh tĩnh thay vì bỏ cả video. Xem log terminal để biết lý do |
 | Nhép môi chạy quá lâu rồi dừng | Tăng `LIPSYNC_TIMEOUT` trong `.env` (mặc định 1800 giây) |
-| Engine đòi thư viện xung đột với `.venv` | Tạo venv riêng cho nó rồi trỏ `LIPSYNC_PYTHON` vào đó |
+| Engine đòi thư viện xung đột | Không còn xảy ra: `setup_lipsync.sh` tự tạo venv riêng cho từng engine, phần mềm tự tìm. Bắt buộc phải vậy vì LatentSync ghim `opencv-python==4.9.0.80`, SadTalker ghim `numpy==1.23.4`, Wav2Lip ghim `numpy==1.17.1` + `torch==1.1.0` — cài chung là hỏng phần dò mặt |
 | Ảnh báo "không thấy mặt" | Dùng ảnh chính diện, mặt chiếm ít nhất 1/5 khung, đủ sáng, không đeo kính râm |
 | Không có nhạc nền | Thư mục `data/music/` đang trống. Thả file `.mp3` vào |
 | Không thấy thẻ đồ hoạ nào | Cần **cả** `GEMINI_API_KEY` lẫn một engine đã cài. Thiếu một trong hai là không có thẻ |

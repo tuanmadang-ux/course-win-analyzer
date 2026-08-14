@@ -86,20 +86,18 @@ case "$WHAT" in
 esac
 
 say "Kiểm tra"
-(cd "$ROOT" && python3 - <<'PYEOF'
-import sys
-sys.path.insert(0, ".")
-from app.motion import engine
 
-found = engine.installed_engines()
-if not found:
-    print("  ✗ Chưa engine nào sẵn sàng")
-    sys.exit(1)
-for name in found:
-    print(f"  ✓ {engine.ENGINES[name].label}")
-print(f"\n  Engine sẽ dùng mặc định: {engine.resolve()}")
-PYEOF
-)
+# Kiểm tra bằng chính file trên đĩa, KHÔNG import Python. Trước đây bước này gọi
+# `python3` hệ thống để hỏi app.motion.engine — nhưng thư viện lại nằm trong
+# .venv, nên trên máy sạch nó báo lỗi thiếu module dù cài hoàn toàn thành công.
+READY=0
+if [[ -f "$ROOT/app/motion/project/node_modules/gsap/dist/gsap.min.js" ]]; then
+  echo "  ✓ HyperFrames sẵn sàng"; READY=1
+fi
+if [[ -f "$ROOT/app/motion/remotion/node_modules/remotion/package.json" ]]; then
+  echo "  ✓ Remotion sẵn sàng"; READY=1
+fi
+[[ "$READY" -eq 1 ]] || die "Chưa engine nào sẵn sàng — xem lại lỗi ở trên."
 
 echo
 echo "Xong. Mở trang 🎬 Tạo video, bật 'Chèn thẻ đồ hoạ' là dùng được."

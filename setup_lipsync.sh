@@ -134,23 +134,20 @@ EOF
 esac
 
 say "Kiểm tra"
-if "$PY" - "$ENGINE" <<'PYEOF'
-import sys
-sys.path.insert(0, ".")
-from app.avatar import lipsync
 
-name = sys.argv[1]
-spec = lipsync.ENGINES[name]
-if lipsync.is_installed(spec):
-    print(f"  ✓ {spec.label} đã sẵn sàng")
-else:
-    print(f"  ✗ Thiếu file: {lipsync.engine_dir(spec) / spec.entry}")
-    sys.exit(1)
-PYEOF
-then
+# Kiểm tra bằng file trên đĩa, không import Python: thư viện nằm trong .venv nên
+# `python3` hệ thống sẽ thiếu module trên máy sạch dù cài đã thành công.
+case "$ENGINE" in
+  latentsync) MARKER="$VENDOR/LatentSync/scripts/inference.py" ;;
+  sadtalker)  MARKER="$VENDOR/SadTalker/inference.py" ;;
+  wav2lip)    MARKER="$VENDOR/Wav2Lip/inference.py" ;;
+esac
+
+if [[ -f "$MARKER" ]]; then
+  echo "  ✓ $ENGINE đã sẵn sàng"
   echo
   echo "Xong. Mở lại phần mềm và chọn '$ENGINE' ở mục Cách nhép môi."
   echo "Muốn dùng mặc định luôn: đặt LIPSYNC_ENGINE=$ENGINE trong file .env"
 else
-  die "Cài chưa đủ — xem lại các bước báo lỗi ở trên."
+  die "Thiếu file: $MARKER — xem lại các bước báo lỗi ở trên."
 fi

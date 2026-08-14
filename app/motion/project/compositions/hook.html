@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  /* Thẻ câu móc khác các thẻ kia ở chỗ không có nền panel, chữ to tràn khung.
+     Nhưng vẫn phải neo cùng vùng an toàn: khuôn mặt người nói nằm quanh
+     y=400..900, đặt chữ ở đó là đè thẳng lên mặt. */
+  .hook {
+    position: absolute;
+    left: 80px; right: 80px; bottom: 470px;
+  }
+  .big {
+    font-size: 104px; font-weight: 900; line-height: 1.08;
+    color: var(--ink); letter-spacing: -2px;
+  }
+  .big em { font-style: normal; color: var(--accent-2); }
+  .kicker {
+    font-size: 38px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 24px;
+  }
+  .rule { height: 8px; width: 160px; border-radius: 99px; background: var(--accent); margin-top: 34px; }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hook"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "text":   {"type": "string", "default": "Câu móc mở đầu"},
+       "kicker": {"type": "string", "default": ""}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="hook floating">
+    <div class="kicker" id="kicker"></div>
+    <div class="big" id="big">Câu móc mở đầu</div>
+    <div class="rule" id="rule"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+
+  const kicker = (v.kicker ?? "").toString().trim();
+  if (kicker) document.getElementById("kicker").textContent = kicker;
+  else document.getElementById("kicker").remove();
+
+  // Cho phép nhấn một cụm bằng *sao* -> tô màu, vì câu móc thường có một từ khoá
+  const raw = (v.text ?? "Câu móc mở đầu").toString().trim();
+  const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  document.getElementById("big").innerHTML = raw
+    .split(/\*(.+?)\*/)
+    .map((part, i) => (i % 2 ? `<em>${escape(part)}</em>` : escape(part)))
+    .join("");
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card", { opacity: 0, y: 40, duration: 0.5, ease: "power3.out" }, 0)
+    .from("#rule", { scaleX: 0, transformOrigin: "left", duration: 0.45, ease: "power2.out" }, 0.35);
+  window.__timelines["hook"] = tl;
+</script>
+</body>
+</html>

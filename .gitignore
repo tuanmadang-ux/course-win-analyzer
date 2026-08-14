@@ -10,3 +10,13 @@ data/
 *.wav
 *.srt
 .DS_Store
+vendor/
+*.png
+*.jpg
+*.jpeg
+*.mp3
+*.ass
+node_modules/
+package-lock.json
+renders/
+.hyperframes/

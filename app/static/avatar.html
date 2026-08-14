@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tạo video người nói</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>🎬 Tạo video người nói</h1>
+  <nav class="nav">
+    <a href="index.html">✂️ Cắt video</a>
+    <a href="avatar.html" class="active">🎬 Tạo video</a>
+  </nav>
+  <div class="caps" id="caps"></div>
+</header>
+
+<main>
+
+  <!-- 1. Ảnh --------------------------------------------------------------->
+  <section class="card">
+    <h2>1. Ảnh người nói <span class="muted small">— 1 người, hoặc 2 người để họ nói qua lại</span></h2>
+
+    <div class="dropzone slim" id="photo-drop">
+      <p class="big">Kéo ảnh vào đây</p>
+      <p class="muted small">Ảnh chính diện, rõ mặt, đủ sáng thì nhép môi mới đẹp. JPG hoặc PNG.</p>
+      <input type="file" id="photo-input" accept="image/*" multiple hidden>
+    </div>
+
+    <div class="photos" id="photos"></div>
+  </section>
+
+  <!-- 2. Nội dung ---------------------------------------------------------->
+  <section class="card">
+    <h2>2. Nội dung muốn nói
+      <span class="counter" id="counter">0 chữ · ~0 giây</span>
+    </h2>
+
+    <textarea class="content" id="content" placeholder="Gõ nội dung ở đây. Cứ viết thoải mái như đang nghĩ gì viết nấy — bật &quot;Để AI biên tập lại&quot; bên dưới thì Gemini sẽ chia câu và sửa cho dễ nói.
+
+Có 2 người thì đánh dấu bằng A: và B: ở đầu dòng."></textarea>
+
+    <div class="tune" style="margin-top:16px">
+      <label class="field">Giọng điệu
+        <select id="style"></select>
+      </label>
+      <label class="field">Độ dài mong muốn (giây)
+        <input type="number" id="max-seconds" min="10" max="300" step="5" value="90">
+      </label>
+      <label class="field" style="align-self:end">
+        <span class="inline-check">
+          <input type="checkbox" id="rewrite" checked>
+          Để AI biên tập lại nội dung
+        </span>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button id="btn-preview" class="ghost">👀 Xem trước kịch bản</button>
+      <span class="muted small" style="align-self:center">Miễn phí, chưa tốn lượt đọc tiếng</span>
+    </div>
+
+    <div class="script-preview hidden" id="script-preview"></div>
+  </section>
+
+  <!-- 3. Giọng đọc & hình -------------------------------------------------->
+  <section class="card">
+    <h2>3. Giọng đọc, hình ảnh, phụ đề</h2>
+
+    <div class="tune">
+      <label class="field">Giọng người 1
+        <select id="voice-a"></select>
+      </label>
+      <label class="field">Giọng người 2
+        <select id="voice-b" disabled></select>
+      </label>
+      <label class="field">Cách nhép môi
+        <select id="engine"></select>
+      </label>
+      <label class="field">Nền phía sau
+        <select id="background">
+          <option value="blur">Mờ từ chính ảnh (khuyên dùng)</option>
+          <option value="solid">Màu đặc</option>
+        </select>
+      </label>
+      <label class="field" id="bg-color-wrap" style="display:none">Chọn màu nền
+        <input type="color" id="background-color" value="#101014">
+      </label>
+    </div>
+
+    <p class="engine-note muted" id="engine-note"></p>
+
+    <div class="motion-box">
+      <label class="inline-check" style="font-size:14px;color:var(--text)">
+        <input type="checkbox" id="motion" checked>
+        <b>Chèn thẻ đồ hoạ B-roll</b>
+      </label>
+      <p class="muted small" style="margin:6px 0 12px">
+        AI đọc lời thoại rồi dựng thẻ mang <b>đúng nội dung đang được nói</b> —
+        con số, danh sách, câu chốt — thay vì clip stock chung chung.
+      </p>
+      <div class="tune" id="motion-tune">
+        <label class="field">Engine dựng thẻ
+          <select id="motion-engine"></select>
+        </label>
+        <label>Tối đa số thẻ <output id="motion-max-out">4</output>
+          <input type="range" id="motion-max" min="1" max="8" step="1" value="4">
+        </label>
+      </div>
+      <p class="engine-note muted" id="motion-note"></p>
+    </div>
+
+    <details class="advanced">
+      <summary>Tinh chỉnh phụ đề &amp; nhạc nền</summary>
+      <div class="tune">
+        <label class="field">
+          <span class="inline-check"><input type="checkbox" id="subtitles" checked> Nướng phụ đề lên video</span>
+        </label>
+        <label>Cỡ chữ phụ đề <output id="sub-size-out">15</output>
+          <input type="range" id="sub-size" min="8" max="26" step="1" value="15">
+        </label>
+        <label>Tối đa ký tự mỗi dòng <output id="sub-chars-out">28</output>
+          <input type="range" id="sub-chars" min="16" max="46" step="1" value="28">
+        </label>
+
+        <label class="field">
+          <span class="inline-check"><input type="checkbox" id="music" checked> Chèn nhạc nền</span>
+        </label>
+        <label class="field">Chọn bài
+          <select id="music-file"></select>
+        </label>
+        <label>Âm lượng nhạc <output id="music-gain-out">-22</output> dB
+          <input type="range" id="music-gain" min="-40" max="-8" step="1" value="-22">
+        </label>
+        <label class="field">
+          <span class="inline-check"><input type="checkbox" id="music-duck" checked> Tự hạ nhạc khi có tiếng nói</span>
+        </label>
+        <div class="wide">
+          <button class="link" id="btn-music-upload" type="button">⬆ Tải file nhạc lên</button>
+          <input type="file" id="music-input" accept="audio/*" hidden>
+          <span class="muted small" id="music-hint"></span>
+        </div>
+
+        <label>Khoảng nghỉ giữa câu <output id="gap-out">0.18</output> giây
+          <input type="range" id="gap" min="0" max="0.8" step="0.02" value="0.18">
+        </label>
+      </div>
+    </details>
+
+    <div class="actions">
+      <button id="btn-generate" class="primary">🎬 Tạo video dọc 9:16</button>
+    </div>
+  </section>
+
+  <!-- 4. Tiến độ ----------------------------------------------------------->
+  <section class="card hidden" id="progress-card">
+    <h2>Đang làm…</h2>
+    <div class="stage" id="stage">Bắt đầu</div>
+    <div class="bar"><div class="bar-fill" id="bar"></div></div>
+    <p class="muted small" id="progress-msg" style="margin:8px 0 0"></p>
+  </section>
+
+  <!-- 5. Kết quả ----------------------------------------------------------->
+  <section class="card hidden" id="result-card">
+    <h2>Xong rồi 🎉</h2>
+    <div class="summary" id="result-stats"></div>
+    <div class="result">
+      <div>
+        <video id="result-video" controls playsinline></video>
+        <div class="outputs" id="result-links"></div>
+      </div>
+      <div>
+        <h2 style="font-size:15px">Lời thoại &amp; phụ đề</h2>
+        <div class="sub-list" id="sub-list"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="avatar.js"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  .cols { display: flex; gap: 22px; }
+  .col { flex: 1; border-radius: 26px; padding: 34px 30px; }
+  .col.bad  { background: rgba(242, 85, 90, 0.16); border: 2px solid rgba(242, 85, 90, 0.5); }
+  .col.good { background: rgba(53, 201, 139, 0.16); border: 2px solid rgba(53, 201, 139, 0.5); }
+  .cap { font-size: 32px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+  .col.bad  .cap { color: #ff8b8f; }
+  .col.good .cap { color: #6ee7b0; }
+  .txt { font-size: 40px; font-weight: 600; line-height: 1.28; color: var(--ink); }
+  .vs {
+    text-align: center; font-size: 34px; font-weight: 800; color: var(--ink-dim);
+    align-self: center; flex-shrink: 0; width: 56px;
+  }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="compare"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "bad_label":  {"type": "string", "default": "Sai"},
+       "bad_text":   {"type": "string", "default": "Cách làm cũ"},
+       "good_label": {"type": "string", "default": "Đúng"},
+       "good_text":  {"type": "string", "default": "Cách làm mới"}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="zone">
+    <div class="panel">
+      <div class="cols">
+        <div class="col bad" id="bad">
+          <div class="cap" id="bad_label">Sai</div>
+          <div class="txt" id="bad_text">Cách làm cũ</div>
+        </div>
+        <div class="vs">VS</div>
+        <div class="col good" id="good">
+          <div class="cap" id="good_label">Đúng</div>
+          <div class="txt" id="good_text">Cách làm mới</div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+  const set = (id, fallback) => {
+    const el = document.getElementById(id);
+    const value = (v[id] ?? fallback ?? "").toString().trim();
+    if (value) el.textContent = value; else el.remove();
+  };
+  set("bad_label", "Sai");
+  set("bad_text", "Cách làm cũ");
+  set("good_label", "Đúng");
+  set("good_text", "Cách làm mới");
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card", { opacity: 0, y: 60, duration: 0.5, ease: "power3.out" }, 0)
+    .from("#bad",  { opacity: 0, x: -50, duration: 0.42 }, 0.22)
+    .from("#good", { opacity: 0, x: 50,  duration: 0.42 }, 0.36);
+  window.__timelines["compare"] = tl;
+</script>
+</body>
+</html>

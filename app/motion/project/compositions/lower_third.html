@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  /* Thanh giới thiệu tên — mỏng, chỉ hiện vài giây đầu. Neo cùng mép dưới với
+     `.zone` (xem chú thích trong theme.css) nhưng ôm sát nội dung. */
+  .lt { position: absolute; left: 72px; bottom: 470px; }
+  .strip {
+    display: inline-block; padding: 26px 40px;
+    background: var(--panel); border-left: 10px solid var(--accent);
+    border-radius: 0 22px 22px 0; box-shadow: var(--shadow);
+  }
+  .name { font-size: 56px; font-weight: 800; color: var(--ink); }
+  .role { font-size: 34px; font-weight: 500; color: var(--ink-dim); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="lower_third"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "name": {"type": "string", "default": "Tên của bạn"},
+       "role": {"type": "string", "default": ""}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="lt">
+    <div class="strip" id="strip">
+      <div class="name" id="name">Tên của bạn</div>
+      <div class="role" id="role"></div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    const value = (text ?? "").toString().trim();
+    if (value) el.textContent = value; else el.remove();
+  };
+  set("name", v.name ?? "Tên của bạn");
+  set("role", v.role ?? "");
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card", { opacity: 0, x: -120, duration: 0.5, ease: "power3.out" }, 0);
+  window.__timelines["lower_third"] = tl;
+</script>
+</body>
+</html>

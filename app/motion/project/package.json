@@ -1,0 +1,12 @@
+{
+  "name": "broll-cards",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes preview",
+    "check": "npx --yes hyperframes check"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
+}

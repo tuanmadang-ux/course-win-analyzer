@@ -18,8 +18,9 @@ DATA_DIR = Path(os.getenv("DATA_DIR") or ROOT / "data")
 UPLOAD_DIR = DATA_DIR / "uploads"
 JOB_DIR = DATA_DIR / "jobs"
 BROLL_CACHE_DIR = DATA_DIR / "broll_cache"
+MUSIC_DIR = Path(os.getenv("MUSIC_DIR") or DATA_DIR / "music")
 
-for _d in (UPLOAD_DIR, JOB_DIR, BROLL_CACHE_DIR):
+for _d in (UPLOAD_DIR, JOB_DIR, BROLL_CACHE_DIR, MUSIC_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # --- Khoá API ---------------------------------------------------------------
@@ -29,6 +30,31 @@ PIXABAY_API_KEY = (os.getenv("PIXABAY_API_KEY") or "").strip()
 
 ANALYSIS_MODEL = os.getenv("ANALYSIS_MODEL", "claude-opus-5").strip()
 
+# --- Google Gemini (dùng cho phần tạo video từ ảnh) -------------------------
+GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-2.5-flash").strip()
+GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip()
+GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image").strip()
+GEMINI_VEO_MODEL = os.getenv("GEMINI_VEO_MODEL", "veo-3.1-generate-preview").strip()
+
+# --- Engine nhép môi --------------------------------------------------------
+# auto | latentsync | sadtalker | wav2lip | veo | still
+LIPSYNC_ENGINE = os.getenv("LIPSYNC_ENGINE", "auto").strip().lower()
+# Thư mục chứa repo lip-sync đã clone (xem setup_lipsync.sh)
+LIPSYNC_HOME = Path(os.getenv("LIPSYNC_HOME") or ROOT / "vendor")
+LIPSYNC_PYTHON = os.getenv("LIPSYNC_PYTHON", "").strip()  # để trống -> dùng python hiện tại
+LIPSYNC_TIMEOUT = int(os.getenv("LIPSYNC_TIMEOUT", "1800"))
+
+# --- Thẻ đồ hoạ B-roll (motion graphics) ------------------------------------
+# auto | hyperframes | remotion | off
+MOTION_ENGINE = os.getenv("MOTION_ENGINE", "auto").strip().lower()
+MOTION_HOME = Path(os.getenv("MOTION_HOME") or Path(__file__).resolve().parent / "motion")
+MOTION_TIMEOUT = int(os.getenv("MOTION_TIMEOUT", "900"))
+NPX_BIN = os.getenv("NPX_BIN", "npx").strip()
+# Remotion tự tải Chromium riêng. Máy có tường lửa/proxy chặn thì trỏ tay vào
+# một bản chrome-headless-shell có sẵn.
+REMOTION_BROWSER = os.getenv("REMOTION_BROWSER", "").strip()
+
 # --- Whisper ----------------------------------------------------------------
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "large-v3").strip()
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto").strip()
@@ -36,7 +62,12 @@ WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "auto").strip()
 
 # --- Render -----------------------------------------------------------------
 USE_NVENC = os.getenv("USE_NVENC", "1").strip() not in ("0", "false", "False", "")
-PORT = int(os.getenv("PORT", "8000"))
+# Tránh mọi cổng hay bị chiếm trên máy người làm video/AI:
+#   8000 Django · 5000 Flask · 3000 Node · 8080 proxy
+#   7860 Gradio · 8188 ComfyUI · 8765 Avrothix và nhiều WebUI khác
+# 8419 không trùng dịch vụ phổ biến nào. Dù sao bị chiếm thì run.py cũng tự
+# nhảy sang cổng trống khác và báo rõ.
+PORT = int(os.getenv("PORT", "8419"))
 
 FFMPEG = os.getenv("FFMPEG_BIN", "ffmpeg")
 FFPROBE = os.getenv("FFPROBE_BIN", "ffprobe")
@@ -48,6 +79,10 @@ def has_claude() -> bool:
 
 def has_stock() -> bool:
     return bool(PEXELS_API_KEY or PIXABAY_API_KEY)
+
+
+def has_gemini() -> bool:
+    return bool(GEMINI_API_KEY)
 
 
 def ffmpeg_available() -> bool:
@@ -140,6 +175,53 @@ class BrollSettings:
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "BrollSettings":
+        d = d or {}
+        base = cls()
+        for k, v in d.items():
+            if hasattr(base, k) and v is not None:
+                setattr(base, k, v)
+        return base
+
+
+@dataclass
+class AvatarSettings:
+    """Tham số cho phần tạo video người nói từ ảnh."""
+
+    # Kịch bản
+    rewrite_script: bool = True        # để Gemini biên tập lại nội dung cho dễ nói
+    language: str = "vi"
+    style: str = "than_thien"          # than_thien | chuyen_nghiep | nang_dong | tam_su
+    max_seconds: float = 90.0          # độ dài mong muốn của video
+
+    # Giọng đọc (tên voice của Gemini TTS)
+    voice_a: str = "Charon"
+    voice_b: str = "Kore"
+    speaking_rate: str = "vua phai"    # mô tả bằng lời, đưa vào prompt TTS
+    segment_gap: float = 0.18          # khoảng nghỉ giữa hai câu (giây)
+
+    # Hình
+    engine: str = "auto"               # auto | latentsync | sadtalker | wav2lip | veo | still
+    background: str = "blur"           # blur | solid | gemini
+    background_color: str = "#101014"
+
+    # Phụ đề
+    subtitles: bool = True
+    subtitle_size: int = 15            # % chiều cao khung -> cỡ chữ
+    subtitle_max_chars: int = 28       # video dọc nên để dòng ngắn
+
+    # Thẻ đồ hoạ B-roll
+    motion: bool = True
+    motion_engine: str = "auto"        # auto | hyperframes | remotion | off
+    motion_max_cards: int = 4
+
+    # Nhạc nền
+    music: bool = True
+    music_file: str = ""               # để trống -> tự chọn theo tâm trạng
+    music_gain_db: float = -22.0       # âm lượng nhạc so với giọng nói
+    music_duck: bool = True            # tự hạ nhạc khi có tiếng nói
+
+    @classmethod
+    def from_dict(cls, d: dict | None) -> "AvatarSettings":
         d = d or {}
         base = cls()
         for k, v in d.items():

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  .item { display: flex; gap: 26px; align-items: flex-start; margin-top: 26px; }
+  .item:first-of-type { margin-top: 0; }
+  .num {
+    width: 62px; height: 62px; flex-shrink: 0; border-radius: 50%;
+    background: var(--accent); color: #06121f;
+    font-size: 34px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .body { font-size: 44px; font-weight: 600; line-height: 1.28; color: var(--ink); padding-top: 4px; }
+  .title { font-size: 46px; font-weight: 800; color: var(--accent); margin-bottom: 30px; }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="steps"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "title": {"type": "string", "default": ""},
+       "items": {"type": "string", "default": "Ý một|Ý hai|Ý ba"},
+       "ordered": {"type": "boolean", "default": true}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="zone">
+    <div class="panel">
+      <div class="title" id="title"></div>
+      <div id="list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+
+  const title = (v.title ?? "").toString().trim();
+  if (title) document.getElementById("title").textContent = title;
+  else document.getElementById("title").remove();
+
+  // Danh sách đi qua biến dạng chuỗi ngăn bởi "|" — JSON lồng trong thuộc tính
+  // HTML rất dễ vỡ dấu nháy, còn chuỗi phẳng thì luôn an toàn.
+  const ordered = v.ordered !== false;
+  const items = (v.items ?? "").toString().split("|")
+    .map((s) => s.trim()).filter(Boolean).slice(0, 5);
+
+  const list = document.getElementById("list");
+  items.forEach((text, i) => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML =
+      `<div class="num">${ordered ? i + 1 : "•"}</div><div class="body"></div>`;
+    row.querySelector(".body").textContent = text;
+    list.appendChild(row);
+  });
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card", { opacity: 0, y: 70, duration: 0.5, ease: "power3.out" }, 0);
+  if (title) tl.from("#title", { opacity: 0, y: 20, duration: 0.35 }, 0.2);
+  // Các ý hiện lần lượt — mắt người xem bám theo từng dòng thay vì bị dội cả khối
+  tl.from(".item", { opacity: 0, x: -40, duration: 0.4, stagger: 0.22, ease: "power2.out" }, 0.32);
+  window.__timelines["steps"] = tl;
+</script>
+</body>
+</html>

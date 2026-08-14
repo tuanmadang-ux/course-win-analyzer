@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="assets/theme.css" />
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<style>
+  .value {
+    font-size: 168px;
+    font-weight: 800;
+    line-height: 0.98;
+    color: var(--accent);
+    letter-spacing: -3px;
+  }
+  .label { font-size: 48px; font-weight: 600; color: var(--ink); margin-top: 16px; }
+  .note  { font-size: 36px; color: var(--ink-dim); margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="stat"
+     data-start="0" data-duration="3"
+     data-width="1080" data-height="1920"
+     data-composition-variables='{
+       "value": {"type": "string", "default": "70%"},
+       "label": {"type": "string", "default": "nhãn của con số"},
+       "note":  {"type": "string", "default": ""}
+     }'>
+  <div class="clip" id="card" data-start="0" data-duration="3" data-track-index="1">
+    <div class="zone">
+    <div class="panel">
+      <div class="value" id="value">70%</div>
+      <div class="label" id="label">nhãn của con số</div>
+      <div class="note" id="note"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const v = (window.__hyperframes?.getVariables?.() ?? {});
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    const value = (text ?? "").toString().trim();
+    if (value) el.textContent = value; else el.remove();
+  };
+  set("value", v.value ?? "70%");
+  set("label", v.label ?? "");
+  set("note", v.note ?? "");
+
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  tl.from("#card",  { opacity: 0, y: 70, duration: 0.55, ease: "power3.out" }, 0)
+    .from("#value", { scale: 0.55, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 0.12)
+    .from("#label", { opacity: 0, y: 24, duration: 0.4 }, 0.34);
+  window.__timelines["stat"] = tl;
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -12,18 +13,37 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import service
+from app.avatar import gemini as gemini_mod
+from app.avatar import lipsync as lipsync_mod
+from app.avatar import music as music_mod
+from app.avatar import script as script_mod
+from app.avatar import service as avatar_service
+from app.motion import engine as motion_engine
+from app.motion import service as motion_service_mod
 from app.config import (
     ANALYSIS_MODEL,
+    GEMINI_TEXT_MODEL,
+    GEMINI_TTS_MODEL,
+    GEMINI_VEO_MODEL,
     UPLOAD_DIR,
+    AvatarSettings,
     BrollSettings,
     CutSettings,
     RenderSettings,
     ffmpeg_available,
     has_claude,
+    has_gemini,
     nvenc_available,
 )
 from app.jobs import manager
-from app.models import AnalyzeRequest, BrollSearchRequest, ReanalyzeRequest, RenderRequest
+from app.models import (
+    AnalyzeRequest,
+    AvatarGenerateRequest,
+    BrollSearchRequest,
+    ReanalyzeRequest,
+    RenderRequest,
+    ScriptPreviewRequest,
+)
 from app.pipeline import analyze as analyzer
 from app.pipeline import broll as broll_mod
 from app.pipeline import ffmpeg_utils
@@ -37,8 +57,9 @@ log = logging.getLogger("app")
 
 STATIC_DIR = Path(__file__).parent / "static"
 ALLOWED_EXT = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".flv"}
+PHOTO_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
-app = FastAPI(title="Trợ lý cắt video", version="1.0")
+app = FastAPI(title="Trợ lý video", version="1.1")
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +75,150 @@ def status() -> dict:
         "claude": has_claude(),
         "model": ANALYSIS_MODEL,
         "stock": broll_mod.stock_available(),
+        "gemini": has_gemini(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Tạo video người nói từ ảnh
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/avatar/options")
+def avatar_options() -> dict:
+    """Mọi thứ giao diện cần để dựng form: voice, engine, nhạc, trạng thái key."""
+    return {
+        "gemini": has_gemini(),
+        "models": {
+            "text": GEMINI_TEXT_MODEL,
+            "tts": GEMINI_TTS_MODEL,
+            "veo": GEMINI_VEO_MODEL,
+        },
+        "voices": gemini_mod.VOICES,
+        "engines": lipsync_mod.describe(),
+        "engine_active": _safe_engine(),
+        "motion_engines": motion_engine.describe(),
+        "motion_active": motion_engine.resolve_safe(),
+        "motion_cards": motion_service_mod.available_types(),
+        "music": music_mod.library(),
+        "styles": [
+            {"id": key, "label": label}
+            for key, label in script_mod.STYLE_HINTS.items()
+        ],
+        "defaults": AvatarSettings().__dict__,
+    }
+
+
+def _safe_engine() -> str:
+    """Engine sẽ được dùng nếu bấm tạo ngay bây giờ — không ném lỗi ra API."""
+    try:
+        return lipsync_mod.resolve_engine()
+    except lipsync_mod.LipSyncError:
+        return "still"
+
+
+@app.post("/api/avatar/photos")
+async def upload_photo(file: UploadFile = File(...)) -> dict:
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in PHOTO_EXT:
+        raise HTTPException(
+            400, f"Ảnh định dạng {suffix or '(không rõ)'} chưa hỗ trợ. Dùng JPG hoặc PNG."
+        )
+
+    photo_id = uuid.uuid4().hex[:12]
+    dest = UPLOAD_DIR / f"{photo_id}{suffix}"
+    try:
+        with open(dest, "wb") as fh:
+            shutil.copyfileobj(file.file, fh, length=1 << 20)
+    finally:
+        await file.close()
+
+    # Báo ngay nếu ảnh không dò được mặt, đừng để tới lúc render mới biết
+    from app.avatar import portrait as portrait_mod  # noqa: PLC0415
+
+    try:
+        face = portrait_mod.detect_face(dest)
+    except portrait_mod.PortraitError as exc:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(400, str(exc)) from exc
+
+    return {
+        "photo_id": photo_id,
+        "filename": file.filename,
+        "face_found": face is not None,
+        "warning": "" if face else "Không dò được khuôn mặt — nhép môi có thể kém. Thử ảnh chính diện, rõ mặt.",
+    }
+
+
+def _find_photo(photo_id: str) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", photo_id or ""):
+        raise HTTPException(400, "Mã ảnh không hợp lệ.")
+    for p in UPLOAD_DIR.glob(f"{photo_id}.*"):
+        if p.suffix.lower() in PHOTO_EXT:
+            return p
+    raise HTTPException(404, "Không tìm thấy ảnh đã tải lên. Hãy tải lại.")
+
+
+@app.post("/api/avatar/script")
+def preview_script(req: ScriptPreviewRequest) -> dict:
+    """Xem trước kịch bản trước khi tốn lượt TTS và thời gian nhép môi."""
+    settings = AvatarSettings.from_dict(req.avatar)
+    try:
+        plan = script_mod.plan(req.content, settings, max(min(req.speakers, 2), 1))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    total = sum(script_mod.estimate_seconds(s["text"]) for s in plan["segments"])
+    return {**plan, "estimated_seconds": round(total, 1)}
+
+
+@app.post("/api/avatar/music")
+async def upload_music(file: UploadFile = File(...)) -> dict:
+    data = await file.read()
+    await file.close()
+    try:
+        saved = music_mod.save_upload(data, file.filename or "nhac.mp3")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"name": saved.name, "duration": round(music_mod.probe_duration(saved), 1)}
+
+
+@app.post("/api/avatar/generate")
+def start_avatar(req: AvatarGenerateRequest) -> dict:
+    if not ffmpeg_available():
+        raise HTTPException(500, "Chưa cài ffmpeg. Xem hướng dẫn trong README.")
+    if not req.photo_ids:
+        raise HTTPException(400, "Chưa chọn ảnh nào.")
+    if not (req.content or "").strip():
+        raise HTTPException(400, "Chưa nhập nội dung cho video.")
+
+    photos = [_find_photo(pid) for pid in req.photo_ids[:2]]
+    settings = AvatarSettings.from_dict(req.avatar)
+    render_settings = RenderSettings.from_dict(req.render)
+
+    if settings.engine == "veo" and not has_gemini():
+        raise HTTPException(400, "Chế độ Veo cần GEMINI_API_KEY trong file .env.")
+    if settings.engine != "veo" and not has_gemini():
+        raise HTTPException(
+            400,
+            "Cần GEMINI_API_KEY để đọc lời thoại thành tiếng. "
+            "Lấy key miễn phí ở https://aistudio.google.com/apikey",
+        )
+
+    job = manager.create("avatar")
+    manager.run(
+        job,
+        lambda j: avatar_service.generate(j, photos, req.content, settings, render_settings),
+    )
+    return {"job_id": job.id}
+
+
+@app.get("/api/avatar/projects/{project_id}")
+def get_avatar_project(project_id: str) -> dict:
+    project = avatar_service.load_project(project_id)
+    if not project:
+        raise HTTPException(404, "Không tìm thấy dự án.")
+    return project
 
 
 # ---------------------------------------------------------------------------

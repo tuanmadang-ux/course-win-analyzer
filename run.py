@@ -17,8 +17,25 @@ def _mark(ok: bool) -> str:
 
 
 def _is_free(port: int) -> bool:
+    """Cổng có thật sự trống không.
+
+    Kiểm hai lớp, vì mỗi lớp một mình đều sai ở đâu đó:
+
+    1. Thử KẾT NỐI tới cổng. Kết nối được nghĩa là đang có người lắng nghe —
+       đây là phép thử đáng tin nhất và giống hệt điều trình duyệt sẽ làm.
+    2. Rồi mới thử bind.
+
+    Và tuyệt đối KHÔNG đặt SO_REUSEADDR ở đây. Trên Linux nó chỉ nới lỏng
+    TIME_WAIT, nhưng trên Windows nó cho phép bind đè lên cổng ĐANG có tiến
+    trình khác lắng nghe — nghĩa là phép thử sẽ báo "trống" trong khi cổng đã
+    có chủ, rồi người dùng mở trình duyệt ra lại thấy phần mềm của người khác.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.25)
+        if probe.connect_ex(("127.0.0.1", port)) == 0:
+            return False
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("127.0.0.1", port))
             return True

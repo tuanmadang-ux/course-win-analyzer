@@ -275,14 +275,14 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 python run.py
 ```
 
-Trình duyệt tự mở `http://127.0.0.1:8765`:
+Trình duyệt tự mở `http://127.0.0.1:8419`:
 
 | Trang | Địa chỉ |
 |---|---|
-| ✂️ Cắt video | `http://127.0.0.1:8765/index.html` |
-| 🎬 Tạo video | `http://127.0.0.1:8765/avatar.html` |
+| ✂️ Cắt video | `http://127.0.0.1:8419/index.html` |
+| 🎬 Tạo video | `http://127.0.0.1:8419/avatar.html` |
 
-Cổng 8765 bị chiếm thì phần mềm **tự nhảy sang cổng trống khác** và in địa chỉ mới
+Cổng 8419 bị chiếm thì phần mềm **tự nhảy sang cổng trống khác** và in địa chỉ mới
 ra terminal. Muốn cố định: đặt `PORT=8080` trong `.env`.
 
 > Lần chạy đầu, trang Cắt video sẽ tải model Whisper (~3GB với `large-v3`). Trang

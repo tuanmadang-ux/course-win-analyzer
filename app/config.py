@@ -62,10 +62,12 @@ WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "auto").strip()
 
 # --- Render -----------------------------------------------------------------
 USE_NVENC = os.getenv("USE_NVENC", "1").strip() not in ("0", "false", "False", "")
-# 8765 chứ không phải 8000: cổng 8000 quá phổ biến (Django, nhiều server dev khác
-# đều mặc định ở đó), người dùng hay bị chiếm cổng mà không hiểu vì sao không vào
-# được. Bị chiếm thì run.py tự nhảy sang cổng trống khác.
-PORT = int(os.getenv("PORT", "8765"))
+# Tránh mọi cổng hay bị chiếm trên máy người làm video/AI:
+#   8000 Django · 5000 Flask · 3000 Node · 8080 proxy
+#   7860 Gradio · 8188 ComfyUI · 8765 Avrothix và nhiều WebUI khác
+# 8419 không trùng dịch vụ phổ biến nào. Dù sao bị chiếm thì run.py cũng tự
+# nhảy sang cổng trống khác và báo rõ.
+PORT = int(os.getenv("PORT", "8419"))
 
 FFMPEG = os.getenv("FFMPEG_BIN", "ffmpeg")
 FFPROBE = os.getenv("FFPROBE_BIN", "ffprobe")

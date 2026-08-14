@@ -356,6 +356,19 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 
 ---
 
+## Không chạy được? Chạy cái này trước
+
+```bash
+python doctor.py
+```
+
+Nó kiểm tra Python, môi trường ảo, thư viện, ffmpeg, file `.env`, key Gemini và
+cổng mạng — rồi in ra đúng chỗ sai kèm lệnh sửa. Chỉ dùng thư viện chuẩn nên
+**chạy được cả khi cài đặt đang hỏng**.
+
+Lỗi hay gặp nhất trên Windows là quên bật môi trường ảo:
+`.venv\Scripts\activate` trước khi chạy `python run.py`.
+
 ## Xử lý sự cố
 
 | Triệu chứng | Cách xử lý |

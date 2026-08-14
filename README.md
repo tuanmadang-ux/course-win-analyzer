@@ -356,6 +356,14 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 
 ---
 
+## Windows: bấm đúp là chạy
+
+Không cần biết terminal. Bấm đúp **`CHAY_PHAN_MEM.bat`** — nó tự tạo môi trường
+Python, cài thư viện, mở `.env` cho bạn dán key, rồi khởi động phần mềm.
+
+Chưa có Python thì nó bảo bạn tải ở python.org (nhớ tích **"Add Python to PATH"**
+lúc cài).
+
 ## Không chạy được? Chạy cái này trước
 
 ```bash

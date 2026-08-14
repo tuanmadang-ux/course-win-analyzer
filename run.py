@@ -3,13 +3,74 @@
 
 from __future__ import annotations
 
+import os
 import socket
+import subprocess
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 
-from app.config import PORT, ffmpeg_available, has_claude, has_gemini
-from app.pipeline.broll import stock_available
+ROOT = Path(__file__).resolve().parent
+
+# ---------------------------------------------------------------------------
+# Khởi động an toàn — phải chạy TRƯỚC khi import bất cứ thứ gì của dự án
+# ---------------------------------------------------------------------------
+
+
+def _venv_python() -> Path | None:
+    for rel in ("Scripts/python.exe", "bin/python"):
+        candidate = ROOT / ".venv" / rel
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _ensure_venv() -> None:
+    """Chưa bật môi trường ảo thì tự khởi động lại bằng Python của nó.
+
+    Đây là lỗi hay gặp nhất, nhất là trên Windows: người dùng gõ `python run.py`
+    mà quên `.venv\\Scripts\\activate`, thư viện nằm trong .venv nên chương trình
+    chết ngay ở dòng import, máy chủ không lên, và trình duyệt chỉ báo "từ chối
+    kết nối" — chẳng gợi ý gì về nguyên nhân thật.
+
+    Máy tính tự sửa được chuyện này, nên để nó tự sửa.
+    """
+    if sys.prefix != sys.base_prefix:      # đang ở trong venv rồi
+        return
+    if os.environ.get("_TROLY_RELAUNCHED"):  # đã thử một lần, đừng lặp vô hạn
+        return
+
+    venv_py = _venv_python()
+    if venv_py is None:
+        return
+
+    print(f"  · Chưa bật môi trường ảo — tự chuyển sang {venv_py}\n")
+    env = dict(os.environ, _TROLY_RELAUNCHED="1")
+    try:
+        raise SystemExit(subprocess.call([str(venv_py), str(ROOT / "run.py"), *sys.argv[1:]], env=env))
+    except OSError as exc:
+        print(f"  ! Không chạy được {venv_py}: {exc}\n")
+
+
+_ensure_venv()
+
+try:
+    from app.config import PORT, ffmpeg_available, has_claude, has_gemini
+    from app.pipeline.broll import stock_available
+except ImportError as exc:
+    # Tới đây nghĩa là đã ở đúng môi trường nhưng thư viện chưa cài đủ.
+    print("=" * 66)
+    print("  CHƯA CÀI ĐỦ THƯ VIỆN")
+    print("=" * 66)
+    print(f"\n  Thiếu: {exc.name}\n")
+    print("  Sửa bằng một trong hai cách:\n")
+    print("    Windows :  .venv\\Scripts\\activate")
+    print("               pip install -r requirements.txt\n")
+    print("    Mac/Linux: bash setup.sh\n")
+    print("  Muốn biết còn thiếu gì nữa:  python doctor.py")
+    print("=" * 66)
+    raise SystemExit(1) from None
 
 
 def _mark(ok: bool) -> str:

@@ -190,6 +190,12 @@ def _argv(spec: EngineSpec, face: Path, audio: Path, out: Path, work: Path) -> l
             "--outfile", str(out),
             "--resize_factor", "1",
             "--pads", "0", "12", "0", "0",
+            # Wav2Lip mặc định 25fps, tình cờ trùng FPS của ta. Truyền thẳng để
+            # nếu sau này đổi FPS thì hai bên không lệch nhau trong im lặng.
+            "--fps", f"{FPS:g}",
+            # Mặc định của repo là 128 — nặng với card 8GB khi khung hình 1080x1920.
+            # 64 chậm hơn một chút nhưng ít hết VRAM hơn nhiều.
+            "--wav2lip_batch_size", "64",
         ]
     raise LipSyncError(f"Chưa biết cách gọi engine {spec.name}.")
 

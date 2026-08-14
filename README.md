@@ -275,7 +275,15 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 python run.py
 ```
 
-Trình duyệt tự mở `http://127.0.0.1:8000`.
+Trình duyệt tự mở `http://127.0.0.1:8765`:
+
+| Trang | Địa chỉ |
+|---|---|
+| ✂️ Cắt video | `http://127.0.0.1:8765/index.html` |
+| 🎬 Tạo video | `http://127.0.0.1:8765/avatar.html` |
+
+Cổng 8765 bị chiếm thì phần mềm **tự nhảy sang cổng trống khác** và in địa chỉ mới
+ra terminal. Muốn cố định: đặt `PORT=8080` trong `.env`.
 
 > Lần chạy đầu, trang Cắt video sẽ tải model Whisper (~3GB với `large-v3`). Trang
 > Tạo video không cần Whisper nên dùng được ngay.
@@ -371,6 +379,7 @@ vendor/                    engine nhép môi tải về (đã .gitignore)
 | Render lỗi codec | Đặt `USE_NVENC=0` trong `.env` để dùng CPU (libx264) |
 | Tab B-roll trống | Cần **cả** `ANTHROPIC_API_KEY` lẫn key stock |
 | Máy hết dung lượng | Xoá `data/jobs/` và `data/broll_cache/` |
+| Không vào được địa chỉ trong terminal | Dùng đúng địa chỉ terminal in ra — cổng bị chiếm thì phần mềm đã tự đổi sang cổng khác. Dùng `127.0.0.1` chứ đừng dùng `localhost` nếu máy có cấu hình DNS lạ |
 
 ---
 

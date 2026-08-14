@@ -62,7 +62,10 @@ WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "auto").strip()
 
 # --- Render -----------------------------------------------------------------
 USE_NVENC = os.getenv("USE_NVENC", "1").strip() not in ("0", "false", "False", "")
-PORT = int(os.getenv("PORT", "8000"))
+# 8765 chứ không phải 8000: cổng 8000 quá phổ biến (Django, nhiều server dev khác
+# đều mặc định ở đó), người dùng hay bị chiếm cổng mà không hiểu vì sao không vào
+# được. Bị chiếm thì run.py tự nhảy sang cổng trống khác.
+PORT = int(os.getenv("PORT", "8765"))
 
 FFMPEG = os.getenv("FFMPEG_BIN", "ffmpeg")
 FFPROBE = os.getenv("FFPROBE_BIN", "ffprobe")

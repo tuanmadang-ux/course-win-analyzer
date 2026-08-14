@@ -111,13 +111,13 @@ def main() -> int:
 
     if switched:
         print(f"\n  ! Cổng {PORT} đang bị chương trình khác chiếm — chuyển sang {port}.")
-        print(f"    Muốn cố định một cổng khác: đặt PORT=... trong file .env")
+        print("    Muốn cố định một cổng khác: đặt PORT=... trong file .env")
 
     print(f"\n  Mở trình duyệt tại: {url}")
     print(f"     ✂️  Cắt video : {url}/index.html")
     print(f"     🎬 Tạo video : {url}/avatar.html")
     if not switched:
-        print(f"\n  Đổi cổng: đặt PORT=8080 trong file .env")
+        print("\n  Đổi cổng: đặt PORT=8080 trong file .env")
     print("  Dừng bằng Ctrl+C\n")
 
     threading.Timer(1.5, lambda: webbrowser.open(url)).start()
